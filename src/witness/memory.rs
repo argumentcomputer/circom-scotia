@@ -1,5 +1,5 @@
 use num_traits::ToPrimitive;
-use wasmer::{Memory, MemoryView};
+use wasmer::{Memory, MemoryView, AsStoreRef};
 
 use num_bigint::{BigInt, BigUint};
 
@@ -52,36 +52,36 @@ impl SafeMemory {
     }
 
     /// Gets an immutable view to the memory in 32 byte chunks
-    pub fn view(&self) -> MemoryView<u32> {
-        self.memory.view()
+    pub fn view<'a>(&self, store: &'a impl AsStoreRef) -> MemoryView<'a> {
+        self.memory.view(store)
     }
 
     /// Returns the next free position in the memory
-    pub fn free_pos(&self) -> u32 {
-        self.view()[0].get()
+    pub fn free_pos(&self, store: &impl AsStoreRef) -> u32 {
+        self.read_u32(store, 0)
     }
 
     /// Sets the next free position in the memory
-    pub fn set_free_pos(&mut self, ptr: u32) {
-        self.write_u32(0, ptr);
+    pub fn set_free_pos(&mut self, store: &impl AsStoreRef, ptr: u32) {
+        self.write_u32(store, 0, ptr);
     }
 
     /// Allocates a U32 in memory
-    pub fn alloc_u32(&mut self) -> u32 {
-        let p = self.free_pos();
-        self.set_free_pos(p + 8);
+    pub fn alloc_u32(&mut self, store: &impl AsStoreRef) -> u32 {
+        let p = self.free_pos(store);
+        self.set_free_pos(store, p + 8);
         p
     }
 
     /// Writes a u32 to the specified memory offset
-    pub fn write_u32(&mut self, ptr: usize, num: u32) {
-        let buf = unsafe { self.memory.data_unchecked_mut() };
+    pub fn write_u32(&mut self, store: &impl AsStoreRef, ptr: usize, num: u32) {
+        let buf = unsafe { self.memory.view(store).data_unchecked_mut() };
         buf[ptr..ptr + std::mem::size_of::<u32>()].copy_from_slice(&num.to_le_bytes());
     }
 
     /// Reads a u32 from the specified memory offset
-    pub fn read_u32(&self, ptr: usize) -> u32 {
-        let buf = unsafe { self.memory.data_unchecked() };
+    pub fn read_u32(&self, store: &impl AsStoreRef, ptr: usize) -> u32 {
+        let buf = unsafe { self.memory.view(store).data_unchecked() };
 
         let mut bytes = [0; 4];
         bytes.copy_from_slice(&buf[ptr..ptr + std::mem::size_of::<u32>()]);
@@ -90,15 +90,15 @@ impl SafeMemory {
     }
 
     /// Allocates `self.n32 * 4 + 8` bytes in the memory
-    pub fn alloc_fr(&mut self) -> u32 {
-        let p = self.free_pos();
-        self.set_free_pos(p + self.n32 as u32 * 4 + 8);
+    pub fn alloc_fr(&mut self, store: &impl AsStoreRef) -> u32 {
+        let p = self.free_pos(store);
+        self.set_free_pos(store, p + self.n32 as u32 * 4 + 8);
         p
     }
 
     /// Writes a Field Element to memory at the specified offset, truncating
     /// to smaller u32 types if needed and adjusting the sign via 2s complement
-    pub fn write_fr(&mut self, ptr: usize, fr: &BigInt) -> Result<()> {
+    pub fn write_fr(&mut self, store: &impl AsStoreRef, ptr: usize, fr: &BigInt) -> Result<()> {
         if fr < &self.short_max && fr > &self.short_min {
             if fr >= &BigInt::zero() {
                 self.write_short_positive(ptr, fr)?;
@@ -205,7 +205,7 @@ mod tests {
 
     fn new() -> SafeMemory {
         SafeMemory::new(
-            Memory::new(&Store::default(), MemoryType::new(1, None, false)).unwrap(),
+            Memory::new(&mut Store::default(), MemoryType::new(1, None, false)).unwrap(),
             2,
             BigInt::from_str(
                 "21888242871839275222246405745257275088548364400416034343698204186575808495617",
