@@ -21,6 +21,7 @@ use crate::circom::reader::generate_witness_from_wasm;
 use crate::circom::wasm::generate_witness_from_wasm;
 
 pub mod circom;
+pub mod witness;
 
 pub type G1 = pasta_curves::pallas::Point;
 pub type F1 = <G1 as Group>::Scalar;
