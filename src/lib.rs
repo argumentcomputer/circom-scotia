@@ -1,11 +1,21 @@
+use color_eyre::Result;
 use bellperson::{ConstraintSystem, gadgets::num::AllocatedNum, SynthesisError, LinearCombination};
+use crypto_bigint::U256;
 use ff::PrimeField;
 use r1cs::R1CS;
+use witness::WitnessCalculator;
 
 pub mod r1cs;
 pub mod reader;
 pub mod witness;
 
+pub fn calculate_witness<F: PrimeField, I: IntoIterator<Item = (String, Vec<F>)>>(
+    witness_calculator: &mut WitnessCalculator,
+    inputs: I,
+    sanity_check: bool,
+) -> Result<Vec<F>> {
+    witness_calculator.calculate_witness(inputs, sanity_check)
+}
 
 /// Reference work is Nota-Scotia: https://github.com/nalinbhardwaj/Nova-Scotia
 pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
