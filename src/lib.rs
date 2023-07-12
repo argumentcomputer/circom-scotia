@@ -1,6 +1,5 @@
 use color_eyre::Result;
 use bellperson::{ConstraintSystem, gadgets::num::AllocatedNum, SynthesisError, LinearCombination};
-use crypto_bigint::U256;
 use ff::PrimeField;
 use r1cs::R1CS;
 use witness::WitnessCalculator;
@@ -42,8 +41,9 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
         };
         let v = AllocatedNum::alloc(cs.namespace(|| format!("public_{}", i)), || Ok(f))?;
 
-        vars.push(v.clone());
+        vars.push(v);
     }
+
     for i in 0..r1cs.num_aux {
         // Private witness trace
         let f: F = {
@@ -72,12 +72,14 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
         );
         res
     };
-    for (i, constraint) in r1cs.constraints.iter().enumerate() {
+
+    
+    for (i, constraint) in r1cs.constraints.into_iter().enumerate() {
         cs.enforce(
             || format!("constraint {}", i),
-            |_| make_lc(constraint.0.clone()),
-            |_| make_lc(constraint.1.clone()),
-            |_| make_lc(constraint.2.clone()),
+            |_| make_lc(constraint.0),
+            |_| make_lc(constraint.1),
+            |_| make_lc(constraint.2),
         );
     }
 
