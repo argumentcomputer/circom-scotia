@@ -28,21 +28,21 @@ pub struct Header {
 
 // R1CSFile parse result
 #[derive(Debug, Default)]
-pub struct R1CSFile<Fr: PrimeField> {
+pub struct R1CSFile<F: PrimeField> {
     pub version: u32,
     pub header: Header,
-    pub constraints: Vec<Constraint<Fr>>,
+    pub constraints: Vec<Constraint<F>>,
     pub wire_mapping: Vec<u64>,
 }
 
-pub(crate) fn read_field<R: Read, Fr: PrimeField>(mut reader: R) -> Result<Fr> {
-    let mut repr = Fr::ZERO.to_repr();
+pub(crate) fn read_field<R: Read, F: PrimeField>(mut reader: R) -> Result<F> {
+    let mut repr = F::ZERO.to_repr();
     for digit in repr.as_mut().iter_mut() {
         // TODO: may need to reverse order?
         *digit = reader.read_u8()?;
     }
-    let fr = Fr::from_repr(repr).unwrap();
-    Ok(fr)
+    let f = F::from_repr(repr).unwrap();
+    Ok(f)
 }
 
 fn read_header<R: Read>(mut reader: R, size: u64) -> Result<Header> {
@@ -68,33 +68,33 @@ fn read_header<R: Read>(mut reader: R, size: u64) -> Result<Header> {
     })
 }
 
-fn read_constraint_vec<R: Read, Fr: PrimeField>(
+fn read_constraint_vec<R: Read, F: PrimeField>(
     mut reader: R,
     header: &Header,
-) -> Result<Vec<(usize, Fr)>> {
+) -> Result<Vec<(usize, F)>> {
     let n_vec = reader.read_u32::<LittleEndian>()? as usize;
     let mut vec = Vec::with_capacity(n_vec);
     for _ in 0..n_vec {
         vec.push((
             reader.read_u32::<LittleEndian>()? as usize,
-            read_field::<&mut R, Fr>(&mut reader)?,
+            read_field::<&mut R, F>(&mut reader)?,
         ));
     }
     Ok(vec)
 }
 
-fn read_constraints<R: Read, Fr: PrimeField>(
+fn read_constraints<R: Read, F: PrimeField>(
     mut reader: R,
     size: u64,
     header: &Header,
-) -> Result<Vec<Constraint<Fr>>> {
+) -> Result<Vec<Constraint<F>>> {
     // todo check section size
     let mut vec = Vec::with_capacity(header.n_constraints as usize);
     for _ in 0..header.n_constraints {
         vec.push((
-            read_constraint_vec::<&mut R, Fr>(&mut reader, header)?,
-            read_constraint_vec::<&mut R, Fr>(&mut reader, header)?,
-            read_constraint_vec::<&mut R, Fr>(&mut reader, header)?,
+            read_constraint_vec::<&mut R, F>(&mut reader, header)?,
+            read_constraint_vec::<&mut R, F>(&mut reader, header)?,
+            read_constraint_vec::<&mut R, F>(&mut reader, header)?,
         ));
     }
     Ok(vec)

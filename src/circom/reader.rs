@@ -18,11 +18,11 @@ use pasta_curves::group::Group;
 
 type G1 = pasta_curves::pallas::Point;
 
-pub fn generate_witness_from_bin<Fr: PrimeField>(
+pub fn generate_witness_from_bin<F: PrimeField>(
     witness_bin: &Path,
     witness_input_json: &String,
     witness_output: &Path,
-) -> Vec<Fr> {
+) -> Vec<F> {
     let root = current_dir().unwrap();
     let witness_generator_input = root.join("circom_input.json");
     fs::write(&witness_generator_input, witness_input_json).unwrap();
@@ -41,11 +41,11 @@ pub fn generate_witness_from_bin<Fr: PrimeField>(
 }
 
 #[cfg(not(target_family = "wasm"))]
-pub fn generate_witness_from_wasm<Fr: PrimeField>(
+pub fn generate_witness_from_wasm<F: PrimeField>(
     witness_wasm: &FileLocation,
     witness_input_json: &String,
     witness_output: &Path,
-) -> Vec<Fr> {
+) -> Vec<F> {
     let witness_wasm = match witness_wasm {
         FileLocation::PathBuf(path) => path,
         FileLocation::URL(_) => panic!("unreachable"),
@@ -75,51 +75,51 @@ pub fn generate_witness_from_wasm<Fr: PrimeField>(
 }
 
 /// load witness file by filename with autodetect encoding (bin or json).
-pub fn load_witness_from_file<Fr: PrimeField>(filename: &Path) -> Vec<Fr> {
+pub fn load_witness_from_file<F: PrimeField>(filename: &Path) -> Vec<F> {
     if filename.ends_with("json") {
-        load_witness_from_json_file::<Fr>(filename)
+        load_witness_from_json_file::<F>(filename)
     } else {
-        load_witness_from_bin_file::<Fr>(filename)
+        load_witness_from_bin_file::<F>(filename)
     }
 }
 
 /// load witness from json file by filename
-pub fn load_witness_from_json_file<Fr: PrimeField>(filename: &Path) -> Vec<Fr> {
+pub fn load_witness_from_json_file<F: PrimeField>(filename: &Path) -> Vec<F> {
     let reader = OpenOptions::new()
         .read(true)
         .open(filename)
         .expect("unable to open.");
-    load_witness_from_json::<Fr, BufReader<File>>(BufReader::new(reader))
+    load_witness_from_json::<F, BufReader<File>>(BufReader::new(reader))
 }
 
 /// load witness from json by a reader
-fn load_witness_from_json<Fr: PrimeField, R: Read>(reader: R) -> Vec<Fr> {
+fn load_witness_from_json<F: PrimeField, R: Read>(reader: R) -> Vec<F> {
     let witness: Vec<String> = serde_json::from_reader(reader).expect("unable to read.");
     witness
         .into_iter()
-        .map(|x| Fr::from_str_vartime(&x).unwrap())
-        .collect::<Vec<Fr>>()
+        .map(|x| F::from_str_vartime(&x).unwrap())
+        .collect::<Vec<F>>()
 }
 
 /// load witness from bin file by filename
-pub fn load_witness_from_bin_file<Fr: PrimeField>(filename: &Path) -> Vec<Fr> {
+pub fn load_witness_from_bin_file<F: PrimeField>(filename: &Path) -> Vec<F> {
     let reader = OpenOptions::new()
         .read(true)
         .open(filename)
         .expect("unable to open.");
-    load_witness_from_bin_reader::<Fr, BufReader<File>>(BufReader::new(reader))
+    load_witness_from_bin_reader::<F, BufReader<File>>(BufReader::new(reader))
         .expect("read witness failed")
 }
 
 /// load witness from u8 array
-pub fn load_witness_from_array<Fr: PrimeField>(buffer: Vec<u8>) -> Result<Vec<Fr>, anyhow::Error> {
-    load_witness_from_bin_reader::<Fr, _>(buffer.as_slice())
+pub fn load_witness_from_array<F: PrimeField>(buffer: Vec<u8>) -> Result<Vec<F>, anyhow::Error> {
+    load_witness_from_bin_reader::<F, _>(buffer.as_slice())
 }
 
 /// load witness from u8 array by a reader
-pub(crate) fn load_witness_from_bin_reader<Fr: PrimeField, R: Read>(
+pub(crate) fn load_witness_from_bin_reader<F: PrimeField, R: Read>(
     mut reader: R,
-) -> Result<Vec<Fr>, anyhow::Error> {
+) -> Result<Vec<F>, anyhow::Error> {
     let mut wtns_header = [0u8; 4];
     reader.read_exact(&mut wtns_header)?;
     if wtns_header != [119, 116, 110, 115] {
@@ -165,7 +165,7 @@ pub(crate) fn load_witness_from_bin_reader<Fr: PrimeField, R: Read>(
     }
     let mut result = Vec::with_capacity(witness_len as usize);
     for _ in 0..witness_len {
-        result.push(read_field::<&mut R, Fr>(&mut reader)?);
+        result.push(read_field::<&mut R, F>(&mut reader)?);
     }
     Ok(result)
 }
@@ -188,7 +188,7 @@ pub fn load_r1cs(filename: &FileLocation) -> R1CS<<G1 as Group>::Scalar> {
 pub use crate::circom::wasm::load_r1cs;
 
 /// load r1cs from json file by filename
-fn load_r1cs_from_json_file<Fr: PrimeField>(filename: &Path) -> R1CS<Fr> {
+fn load_r1cs_from_json_file<F: PrimeField>(filename: &Path) -> R1CS<F> {
     let reader = OpenOptions::new()
         .read(true)
         .open(filename)
@@ -197,7 +197,7 @@ fn load_r1cs_from_json_file<Fr: PrimeField>(filename: &Path) -> R1CS<Fr> {
 }
 
 /// load r1cs from json by a reader
-fn load_r1cs_from_json<Fr: PrimeField, R: Read>(reader: R) -> R1CS<Fr> {
+fn load_r1cs_from_json<F: PrimeField, R: Read>(reader: R) -> R1CS<F> {
     let circuit_json: CircuitJson = serde_json::from_reader(reader).expect("unable to read.");
 
     let num_inputs = circuit_json.num_inputs + circuit_json.num_outputs + 1;
@@ -205,7 +205,7 @@ fn load_r1cs_from_json<Fr: PrimeField, R: Read>(reader: R) -> R1CS<Fr> {
 
     let convert_constraint = |lc: &BTreeMap<String, String>| {
         lc.iter()
-            .map(|(index, coeff)| (index.parse().unwrap(), Fr::from_str_vartime(coeff).unwrap()))
+            .map(|(index, coeff)| (index.parse().unwrap(), F::from_str_vartime(coeff).unwrap()))
             .collect_vec()
     };
 

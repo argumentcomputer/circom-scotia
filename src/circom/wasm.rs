@@ -54,7 +54,7 @@ pub async fn load_r1cs(filename: &FileLocation) -> R1CS<<G1 as Group>::Scalar> {
 }
 
 #[cfg(target_family = "wasm")]
-pub async fn generate_witness_from_wasm<Fr: PrimeField>(
+pub async fn generate_witness_from_wasm<F: PrimeField>(
     witness_wasm: &FileLocation,
     witness_input_json: &String,
     _witness_output: &Path, // note: this is unused

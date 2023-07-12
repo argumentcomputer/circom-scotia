@@ -18,6 +18,7 @@ bellperson = { version = "0.25", default-features = false }
 byteorder = "1.4.3"
 cfg-if = "1.0.0"
 color-eyre = "0.6.2"
+crypto-bigint = { version = "0.5.2", features = ["serde"] }
 ff = { version = "0.13", features = ["derive"]}
 fnv = "1.0.7"
 hex-literal = "0.3.4"
