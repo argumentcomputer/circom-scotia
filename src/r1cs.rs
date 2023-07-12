@@ -29,7 +29,7 @@ pub(crate) struct CircomInput {
 pub(crate) type Constraint<F> = (Vec<(usize, F)>, Vec<(usize, F)>, Vec<(usize, F)>);
 
 // Add utils for creating this from files / directly from bytes
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct CircomConfig<F: PrimeField> {
     pub r1cs: R1CS<F>,
     pub wtns: WitnessCalculator,
