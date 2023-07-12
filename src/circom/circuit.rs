@@ -18,33 +18,33 @@ pub struct CircuitJson {
     pub num_variables: usize,
 }
 
-pub type Constraint<Fr> = (Vec<(usize, Fr)>, Vec<(usize, Fr)>, Vec<(usize, Fr)>);
+pub type Constraint<F> = (Vec<(usize, F)>, Vec<(usize, F)>, Vec<(usize, F)>);
 
 #[derive(Clone)]
-pub struct R1CS<Fr: PrimeField> {
+pub struct R1CS<F: PrimeField> {
     pub num_inputs: usize,
     pub num_aux: usize,
     pub num_variables: usize,
-    pub constraints: Vec<Constraint<Fr>>,
+    pub constraints: Vec<Constraint<F>>,
 }
 
 #[derive(Clone)]
-pub struct CircomCircuit<Fr: PrimeField> {
-    pub r1cs: R1CS<Fr>,
-    pub witness: Option<Vec<Fr>>,
+pub struct CircomCircuit<F: PrimeField> {
+    pub r1cs: R1CS<F>,
+    pub witness: Option<Vec<F>>,
     // debug symbols
 }
 
-impl<'a, Fr: PrimeField> CircomCircuit<Fr> {
-    pub fn get_public_outputs(&self) -> Vec<Fr> {
+impl<'a, F: PrimeField> CircomCircuit<F> {
+    pub fn get_public_outputs(&self) -> Vec<F> {
         // NOTE: assumes exactly half of the (public inputs + outputs) are outputs
         let pub_output_count = (self.r1cs.num_inputs - 1) / 2;
-        let mut z_out: Vec<Fr> = vec![];
+        let mut z_out: Vec<F> = vec![];
         for i in 1..self.r1cs.num_inputs {
             // Public inputs do not exist, so we alloc, and later enforce equality from z values
-            let f: Fr = {
+            let f: F = {
                 match &self.witness {
-                    None => Fr::ONE,
+                    None => F::ONE,
                     Some(w) => w[i],
                 }
             };
@@ -58,14 +58,14 @@ impl<'a, Fr: PrimeField> CircomCircuit<Fr> {
         z_out
     }
 
-    pub fn vanilla_synthesize<CS: ConstraintSystem<Fr>>(
+    pub fn vanilla_synthesize<CS: ConstraintSystem<F>>(
         &self,
         cs: &mut CS,
-        z: &[AllocatedNum<Fr>],
-    ) -> Result<Vec<AllocatedNum<Fr>>, SynthesisError> {
+        z: &[AllocatedNum<F>],
+    ) -> Result<Vec<AllocatedNum<F>>, SynthesisError> {
         // println!("witness: {:?}", self.witness);
-        // // println!("wire_mapping: {:?}", self.wire_mapping);
-        // // println!("aux_offset: {:?}", self.aux_offset);
+        // println!("wire_mapping: {:?}", self.wire_mapping);
+        // println!("aux_offset: {:?}", self.aux_offset);
         // println!("num_inputs: {:?}", self.r1cs.num_inputs);
         // println!("num_aux: {:?}", self.r1cs.num_aux);
         // println!("num_variables: {:?}", self.r1cs.num_variables);
@@ -77,15 +77,15 @@ impl<'a, Fr: PrimeField> CircomCircuit<Fr> {
 
         let witness = &self.witness;
 
-        let mut vars: Vec<AllocatedNum<Fr>> = vec![];
-        let mut z_out: Vec<AllocatedNum<Fr>> = vec![];
+        let mut vars: Vec<AllocatedNum<F>> = vec![];
+        let mut z_out: Vec<AllocatedNum<F>> = vec![];
         let pub_output_count = (self.r1cs.num_inputs - 1) / 2;
 
         for i in 1..self.r1cs.num_inputs {
             // Public inputs do not exist, so we alloc, and later enforce equality from z values
-            let f: Fr = {
+            let f: F = {
                 match witness {
-                    None => Fr::ONE,
+                    None => F::ONE,
                     Some(w) => w[i],
                 }
             };
@@ -99,9 +99,9 @@ impl<'a, Fr: PrimeField> CircomCircuit<Fr> {
         }
         for i in 0..self.r1cs.num_aux {
             // Private witness trace
-            let f: Fr = {
+            let f: F = {
                 match witness {
-                    None => Fr::ONE,
+                    None => F::ONE,
                     Some(w) => w[i + self.r1cs.num_inputs],
                 }
             };
@@ -110,10 +110,10 @@ impl<'a, Fr: PrimeField> CircomCircuit<Fr> {
             vars.push(v);
         }
 
-        let make_lc = |lc_data: Vec<(usize, Fr)>| {
+        let make_lc = |lc_data: Vec<(usize, F)>| {
             let res = lc_data.iter().fold(
-                LinearCombination::<Fr>::zero(),
-                |lc: LinearCombination<Fr>, (index, coeff)| {
+                LinearCombination::<F>::zero(),
+                |lc: LinearCombination<F>, (index, coeff)| {
                     lc + if *index > 0 {
                         (*coeff, vars[*index - 1].get_variable())
                     } else {
@@ -145,23 +145,23 @@ impl<'a, Fr: PrimeField> CircomCircuit<Fr> {
     }
 }
 
-impl<'a, Fr: PrimeField> StepCircuit<Fr> for CircomCircuit<Fr> {
+impl<'a, F: PrimeField> StepCircuit<F> for CircomCircuit<F> {
     fn arity(&self) -> usize {
         (self.r1cs.num_inputs - 1) / 2
     }
 
-    fn synthesize<CS: ConstraintSystem<Fr>>(
+    fn synthesize<CS: ConstraintSystem<F>>(
         &self,
         cs: &mut CS,
-        z: &[AllocatedNum<Fr>],
-    ) -> Result<Vec<AllocatedNum<Fr>>, SynthesisError> {
+        z: &[AllocatedNum<F>],
+    ) -> Result<Vec<AllocatedNum<F>>, SynthesisError> {
         // synthesize the circuit
         let z_out = self.vanilla_synthesize(cs, z);
 
         z_out
     }
 
-    fn output(&self, _z: &[Fr]) -> Vec<Fr> {
+    fn output(&self, _z: &[F]) -> Vec<F> {
         self.get_public_outputs()
     }
 }
