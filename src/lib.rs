@@ -1,18 +1,22 @@
+use std::ops::DerefMut;
+
 use color_eyre::Result;
 use bellperson::{ConstraintSystem, gadgets::num::AllocatedNum, SynthesisError, LinearCombination};
 use ff::PrimeField;
-use r1cs::R1CS;
-use witness::WitnessCalculator;
+use r1cs::{R1CS, CircomConfig};
 
 pub mod r1cs;
 pub mod reader;
 pub mod witness;
 
+/// TODO docs
 pub fn calculate_witness<F: PrimeField, I: IntoIterator<Item = (String, Vec<F>)>>(
-    witness_calculator: &mut WitnessCalculator,
+    cfg: &CircomConfig<F>,
     inputs: I,
     sanity_check: bool,
 ) -> Result<Vec<F>> {
+    let mut lock = cfg.wtns.lock().unwrap();
+    let witness_calculator = lock.deref_mut();
     witness_calculator.calculate_witness(inputs, sanity_check)
 }
 
