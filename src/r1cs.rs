@@ -1,4 +1,4 @@
-use std::{path::Path, io};
+use std::{path::Path, io, sync::Mutex};
 
 use ff::PrimeField;
 use serde::{Deserialize, Serialize};
@@ -32,13 +32,13 @@ pub(crate) type Constraint<F> = (Vec<(usize, F)>, Vec<(usize, F)>, Vec<(usize, F
 #[derive(Debug)]
 pub struct CircomConfig<F: PrimeField> {
     pub r1cs: R1CS<F>,
-    pub wtns: WitnessCalculator,
+    pub wtns: Mutex<WitnessCalculator>,
     pub sanity_check: bool,
 }
 
 impl<F: PrimeField> CircomConfig<F> {
     pub fn new(wtns: impl AsRef<Path>, r1cs: impl AsRef<Path>) -> io::Result<Self> {
-        let wtns = WitnessCalculator::new(wtns).unwrap();
+        let wtns = Mutex::new(WitnessCalculator::new(wtns).unwrap());
         let r1cs = load_r1cs(r1cs);
         Ok(Self {
             wtns,
