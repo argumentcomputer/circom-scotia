@@ -15,10 +15,10 @@ pub(crate) struct CircomCircuit<F: PrimeField> {
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct R1CS<F: PrimeField> {
-    pub(crate) num_inputs: usize,
-    pub(crate) num_aux: usize,
-    pub(crate) num_variables: usize,
-    pub(crate) constraints: Vec<Constraint<F>>,
+    pub num_inputs: usize,
+    pub num_aux: usize,
+    pub num_variables: usize,
+    pub constraints: Vec<Constraint<F>>,
 }
 
 #[derive(Serialize, Deserialize)]
