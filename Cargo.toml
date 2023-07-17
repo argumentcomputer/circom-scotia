@@ -14,7 +14,7 @@ keywords = ["zkSNARKs", "cryptography", "proofs"]
 
 [dependencies]
 anyhow = "1.0.65"
-bellperson = { git = "https://github.com/lurk-lab/bellperson", branch = "dev" }
+bellperson = "0.25"
 byteorder = "1.4.3"
 cfg-if = "1.0.0"
 color-eyre = "0.6.2"
@@ -26,7 +26,7 @@ itertools = "0.9.0"
 nova = { version="0.22.0", package = "nova-snark", default-features = false }
 num-bigint = { version = "0.4", features = ["serde", "rand"] }
 num-traits = "0.2.15"
-pasta_curves = { git = "https://github.com/lurk-lab/pasta_curves", branch = "dev" }
+pasta_curves = { version = "0.5.1" }
 serde = "1.0"
 serde_json = "1.0.85"
 thiserror = "1.0.43"
@@ -44,6 +44,3 @@ default = []
 circom-2 = []
 cuda = ["nova/cuda"]
 opencl = ["nova/opencl"]
-
-[patch.crates-io]
-pasta_curves = { git = "https://github.com/lurk-lab/pasta_curves", branch = "dev" }
