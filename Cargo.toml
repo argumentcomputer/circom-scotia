@@ -44,3 +44,6 @@ default = []
 circom-2 = []
 cuda = ["nova/cuda"]
 opencl = ["nova/opencl"]
+
+[patch.crates-io]
+pasta_curves = { git = "https://github.com/lurk-lab/pasta_curves", branch = "dev" }

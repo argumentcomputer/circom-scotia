@@ -1,13 +1,44 @@
-use std::ops::DerefMut;
+use std::{ops::DerefMut, path::{Path, PathBuf}, fs, process::Command, env::current_dir};
 
 use color_eyre::Result;
 use bellperson::{ConstraintSystem, gadgets::num::AllocatedNum, SynthesisError, LinearCombination};
 use ff::PrimeField;
 use r1cs::{R1CS, CircomConfig};
 
+use crate::reader::load_witness_from_file;
+
 pub mod r1cs;
 pub mod reader;
 pub mod witness;
+
+pub fn generate_witness_from_wasm<F: PrimeField>(
+    witness_dir: PathBuf,
+    witness_input_json: String,
+    witness_output: impl AsRef<Path>,
+) -> Vec<F> {
+    let root = current_dir().unwrap();
+    let witness_generator_input = root.join("circom_input.json");
+    fs::write(&witness_generator_input, witness_input_json).unwrap();
+
+    let mut witness_js = witness_dir.clone();
+    witness_js.push("generate_witness.js");
+    let mut witness_wasm = witness_dir.clone();
+    witness_wasm.push("main.wasm");
+
+    let output = Command::new("node")
+        .arg(&witness_js)
+        .arg(&witness_wasm)
+        .arg(&witness_generator_input)
+        .arg(witness_output.as_ref())
+        .output()
+        .expect("failed to execute process");
+    if !output.stdout.is_empty() || !output.stderr.is_empty() {
+        print!("stdout: {}", std::str::from_utf8(&output.stdout).unwrap());
+        print!("stderr: {}", std::str::from_utf8(&output.stderr).unwrap());
+    }
+    let _ = fs::remove_file(witness_generator_input);
+    load_witness_from_file(witness_output)
+}
 
 /// TODO docs
 pub fn calculate_witness<F: PrimeField, I: IntoIterator<Item = (String, Vec<F>)>>(
