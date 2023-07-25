@@ -1,10 +1,10 @@
-# Nova Scotia
+# Circom Scotia
 
 ### Middleware to compile [Circom](https://github.com/iden3/circom) circuits to [Nova](https://github.com/microsoft/Nova) prover
 
-<img width="100%" src="https://user-images.githubusercontent.com/6984346/201644366-a9be1826-81cc-4b78-91c0-2086241e5130.png" alt="Original from Tadashi Moriyama">
+![roses-rose-pattern-porcelain-white-background-555e78a5593799197d0f9a5c4e3ba32d](https://github.com/lurk-lab/circom-scotia/assets/76727734/99f20cf5-5371-48ef-8dee-ff2b8526b761)
 
-This repository provides necessary middleware to take generated output of the Circom compiler (R1CS constraints and generated witnesses) and use them with Nova as a prover.
+This repository provides necessary middleware to take generated output of the Circom compiler (R1CS constraints and generated witnesses) and use them with Nova as a prover. It is based off the work of [Nova-Scotia](https://github.com/nalinbhardwaj/Nova-Scotia) and Arkworks' [Circom-Compat](https://github.com/arkworks-rs/circom-compat).
 
 ## Why?
 
