@@ -41,14 +41,14 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
 }
 
 /// TODO docs
-pub fn calculate_witness<F: PrimeField, I: IntoIterator<Item = (String, Vec<F>)>>(
+pub fn calculate_witness<F: PrimeField>(
     cfg: &CircomConfig<F>,
-    inputs: I,
+    input: Vec<(String, Vec<F>)>,
     sanity_check: bool,
 ) -> Result<Vec<F>> {
     let mut lock = cfg.wtns.lock().unwrap();
     let witness_calculator = lock.deref_mut();
-    witness_calculator.calculate_witness(inputs, sanity_check)
+    witness_calculator.calculate_witness(input, sanity_check)
 }
 
 /// Reference work is Nota-Scotia: https://github.com/nalinbhardwaj/Nova-Scotia

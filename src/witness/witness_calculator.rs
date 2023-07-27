@@ -177,9 +177,9 @@ impl WitnessCalculator {
         }
     }
 
-    pub fn calculate_witness<F: PrimeField, I: IntoIterator<Item = (String, Vec<F>)>>(
+    pub fn calculate_witness<F: PrimeField>(
         &mut self,
-        inputs: I,
+        input: Vec<(String, Vec<F>)>,
         sanity_check: bool,
     ) -> Result<Vec<F>> {
         self.instance.init(&mut self.store, sanity_check)?;
@@ -187,8 +187,8 @@ impl WitnessCalculator {
         cfg_if::cfg_if! {
             if #[cfg(feature = "circom-2")] {
                 match self.circom_version {
-                    2 => self.calculate_witness_circom2(inputs, sanity_check),
-                    1 => self.calculate_witness_circom1(inputs, sanity_check),
+                    2 => self.calculate_witness_circom2(input, sanity_check),
+                    1 => self.calculate_witness_circom1(input, sanity_check),
                     _ => panic!("Unknown Circom version")
                 }
             } else {
@@ -198,9 +198,9 @@ impl WitnessCalculator {
     }
 
     // Circom 1 default behavior
-    fn calculate_witness_circom1<F: PrimeField, I: IntoIterator<Item = (String, Vec<F>)>>(
+    fn calculate_witness_circom1<F: PrimeField>(
         &mut self,
-        inputs: I,
+        input: Vec<(String, Vec<F>)>,
         sanity_check: bool,
     ) -> Result<Vec<F>> {
         self.instance.init(&mut self.store, sanity_check)?;
@@ -210,7 +210,7 @@ impl WitnessCalculator {
         let p_fr = self.memory.alloc_fr(&mut self.store);
 
         // allocate the inputs
-        for (name, values) in inputs.into_iter() {
+        for (name, values) in input.into_iter() {
             let (msb, lsb) = fnv(&name);
 
             self.instance
@@ -241,9 +241,9 @@ impl WitnessCalculator {
 
     // Circom 2 feature flag with version 2
     #[cfg(feature = "circom-2")]
-    fn calculate_witness_circom2<F: PrimeField, I: IntoIterator<Item = (String, Vec<F>)>>(
+    fn calculate_witness_circom2<F: PrimeField>(
         &mut self,
-        inputs: I,
+        input: Vec<(String, Vec<F>)>,
         sanity_check: bool,
     ) -> Result<Vec<F>> {
         self.instance.init(&mut self.store, sanity_check)?;
@@ -251,7 +251,7 @@ impl WitnessCalculator {
         let n32 = self.instance.get_field_num_len32(&mut self.store)?;
 
         // allocate the inputs
-        for (name, values) in inputs.into_iter() {
+        for (name, values) in input.into_iter() {
             let (msb, lsb) = fnv(&name);
 
             for (i, value) in values.into_iter().enumerate() {
