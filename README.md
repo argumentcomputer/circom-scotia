@@ -4,35 +4,19 @@
 
 ![roses-rose-pattern-porcelain-white-background-555e78a5593799197d0f9a5c4e3ba32d](https://github.com/lurk-lab/circom-scotia/assets/76727734/99f20cf5-5371-48ef-8dee-ff2b8526b761)
 
-This repository provides necessary middleware to take generated output of the Circom compiler (R1CS constraints and generated witnesses) and use them with Nova as a prover. It is based off the work of [Nova-Scotia](https://github.com/nalinbhardwaj/Nova-Scotia) and Arkworks' [Circom-Compat](https://github.com/arkworks-rs/circom-compat).
-
-## Why?
-
-Nova is the state of the art for recursive SNARKs, Circom is the state of the art for ZK devtooling, so it makes a lot of sense to want to do this. Since Nova uses ~R1CS arithmetization, its mostly just a matter of parsing Circom output into something Nova can use.
-
-As [Justin Drake talks about it](https://youtu.be/SwonTtOQzAk), I think the right way to think of Nova is as a preprocessor for zkSNARKs with lots of repeated structure -- Nova can shrink the cost (in number of R1CS constraints) of checking N instances of a problem to ~one instance of the same problem. This is clean and magical and lends itself well to a world where we take the output of Nova and then verify it in a "real" zkSNARK (like PLONK/groth16/Spartan) to obtain a actually fully minified proof (that is sublinear even in the size of one instance). Notably, [this pattern is already used](https://youtu.be/VmYpbFxBdtM?t=155) in settings like [zkEVMs](https://youtu.be/j7An-33_Zs0), but with STARK proofs instead of Nova proofs. IMO, Nova (and folding scheme-like things in particular) lend themselves better to the properties we want with the preprocessing layer vs. STARKs: fast compression, minimal cryptographic assumptions and low recursive overhead.[^1]
-
-[^1]: But currently, Nova/R1CS lacks the customizability of STARKS (custom gates and lookup tables in particular), so there is a tradeoff here.
+This repository provides necessary middleware to take generated output of the Circom compiler (R1CS constraints and generated witnesses) and use them with Bellperson. It is based off the work of [Nova-Scotia](https://github.com/nalinbhardwaj/Nova-Scotia) and Arkworks' [Circom-Compat](https://github.com/arkworks-rs/circom-compat).
 
 ## How?
 
-![Nova Scotia](https://user-images.githubusercontent.com/6984346/201644973-fb084b6c-3807-4bf4-99bf-a1461271f1b5.png)
+To use it yourself, install version 2.1.6 of greater of [Circom](https://docs.circom.io). To install this branch, clone the git repo (using `git clone https://github.com/nalinbhardwaj/circom.git && git checkout pasta`). Then build and install the `circom` binary by running `cargo install --path circom`. This will overwrite any existing `circom` binary. Refer to the [Circom documentation](https://docs.circom.io/getting-started/installation/#installing-dependencies) for more information.
 
-To use it yourself, install this branch of [Circom](https://docs.circom.io) which adds support for the [Pasta Curves](https://electriccoin.co/blog/the-pasta-curves-for-halo-2-and-beyond/) to the C++ witness generator: [nalinbhardwaj/pasta](https://github.com/nalinbhardwaj/circom/tree/pasta). To install this branch, clone the git repo (using `git clone https://github.com/nalinbhardwaj/circom.git && git checkout pasta`). Then build and install the `circom` binary by running `cargo install --path circom`. This will overwrite any existing `circom` binary. Refer to the [Circom documentation](https://docs.circom.io/getting-started/installation/#installing-dependencies) for more information.
+When you're ready, compile your circuit using `circom [file].circom --r1cs --wasm --prime vesta` for the vesta curve. We will later use the R1CS file and the witness generator, so make note of their filepaths. You can independently test these step circuits by running witness generation as described in the [Circom documentation](https://docs.circom.io/getting-started/computing-the-witness/).
 
-Note that if you are interested in generating and verifying proofs in browsers, you must use the WASM witness generator. We will describe in-browser proving and verification later in the README.
-
-### Writing Nova Step Circuits in Circom
-
-To write Nova Scotia circuits in Circom, we operate on the abstraction of one step of recursion. We write a circuit that takes a list of public inputs (these must be named `step_in` for the Nova-Scotia interface) and outputs the same number of public outputs (named `step_out`). These public outputs will then be routed to the next step of recursion as `step_in`, and this will continue until we reach the end of the recursion iterations. Within a step circuit, besides the public inputs, Circom circuits can input additional private inputs (with any name/JSON structure Circom will accept). We will instrument the piping of these private inputs in our Rust shimming.
-
-When you're ready, compile your circuit using `circom [file].circom --r1cs --sym --c --prime vesta` for the vesta curve. Compile the C++ witness generator in `[file]_cpp` by running `make` in that folder. Alternately, you can compile the WASM witness generator using `circom [file].circom --r1cs --sym --wasm --prime vesta`.  We will later use the R1CS file and the witness generator binary (either C++ binary or WASM), so make note of their filepaths. You can independently test these step circuits by running witness generation as described in the [Circom documentation](https://docs.circom.io/getting-started/computing-the-witness/).
-
-### Rust shimming for Nova Scotia
-
-Now, start a new Rust project and add Nova Scotia to your dependencies. Then, you can start using your Circom step circuits with Nova. Start by defining the paths to the Circom output and loading the R1CS file:
+Now, start a new Rust project and add Nova Scotia to your dependencies. Then, you can start using your Circom circuits with Bellperson. Start by defining the paths to the Circom output and loading the R1CS file:
 
 ```rust
+
+
 let circuit_file = root.join("examples/bitcoin/circom/bitcoin_benchmark.r1cs");
 let witness_generator_file =
     root.join("examples/bitcoin/circom/bitcoin_benchmark_cpp/bitcoin_benchmark");
