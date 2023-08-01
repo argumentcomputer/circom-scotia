@@ -1,3 +1,9 @@
+//! Contributors:
+//! 
+//! - Hanting Zhang (winston@lurk-lab.com)
+//!   - Adapted the original work here: https://github.com/nalinbhardwaj/Nova-Scotia/blob/main/src/circom
+//!   - Retrofitted to support `wasmer` witness generation.
+
 use std::{ops::DerefMut, path::{Path, PathBuf}, fs, process::Command, env::current_dir};
 
 use color_eyre::Result;

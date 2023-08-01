@@ -1,3 +1,12 @@
+//! MIT License
+//! Copyright (c) 2021 Georgios Konstantopoulos
+//!
+//! Contributors:
+//! 
+//! - Hanting Zhang (winston@lurk-lab.com)
+//!   - Adapted the original work here: https://github.com/arkworks-rs/circom-compat/blob/master/src/witness/mod.rs
+
+
 mod witness_calculator;
 pub use witness_calculator::WitnessCalculator;
 

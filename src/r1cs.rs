@@ -1,3 +1,12 @@
+//! MIT License
+//! Copyright (c) 2022 Nalin
+//!
+//! Contributors:
+//! 
+//! - Hanting Zhang (winston@lurk-lab.com)
+//!   - Adapted the original work here: https://github.com/nalinbhardwaj/Nova-Scotia/blob/main/src/circom
+//!   - Retrofitted to support `wasmer` witness generation.
+
 use std::{path::Path, io, sync::Mutex};
 
 use ff::PrimeField;
