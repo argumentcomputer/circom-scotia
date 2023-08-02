@@ -1,5 +1,6 @@
-//! MIT License
 //! Copyright (c) 2021 Georgios Konstantopoulos
+//! Copyright (c) Lurk Lab
+//! SPDX-License-Identifier: MIT
 //!
 //! Contributors:
 //! 

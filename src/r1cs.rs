@@ -1,6 +1,7 @@
-//! MIT License
 //! Copyright (c) 2022 Nalin
-//!
+//! Copyright (c) Lurk Lab
+//! SPDX-License-Identifier: MIT
+//! 
 //! Contributors:
 //! 
 //! - Hanting Zhang (winston@lurk-lab.com)
