@@ -1,4 +1,15 @@
-use crypto_bigint::{Encoding, U256};
+//! Copyright (c) 2021 Georgios Konstantopoulos
+//! Copyright (c) Lurk Lab
+//! SPDX-License-Identifier: MIT
+//!
+//! Contributors:
+//! 
+//! - Hanting Zhang (winston@lurk-lab.com)
+//!   - Adapted the original work here: https://github.com/arkworks-rs/circom-compat/blob/master/src/witness/memory.rs
+//!   - Retrofitted for support without `arkworks` libraries such as `ark-ff` or `ark-bignum`, which were replaced with `ff` and `crypto-bignum`.
+
+
+use crypto_bigint::{U256, Encoding};
 use ff::PrimeField;
 use wasmer::{AsStoreRef, Memory, MemoryView};
 
