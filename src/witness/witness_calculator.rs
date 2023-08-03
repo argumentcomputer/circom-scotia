@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 //
 // Contributors:
-// 
+//
 // - Hanting Zhang (winston@lurk-lab.com)
 //   - Adapted the original work here: https://github.com/arkworks-rs/circom-compat/blob/master/src/witness/witness_calculator.rs
 //   - Retrofitted for support without `arkworks` libraries such as `ark-ff` or `ark-bignum`, which were replaced with `ff` and `crypto-bignum`.
@@ -15,6 +15,9 @@ use ff::PrimeField;
 use wasmer::{
     imports, AsStoreMut, Function, Instance, Memory, MemoryType, Module, RuntimeError, Store,
 };
+
+#[cfg(feature = "llvm")]
+use wasmer_compiler_llvm::LLVM;
 
 // #[cfg(feature = "circom-2")]
 // use num::ToPrimitive;
@@ -92,7 +95,14 @@ impl WitnessCalculator {
     }
 
     pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self> {
-        let store = Store::default();
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "llvm")] {
+                let compiler = LLVM::new();
+                let store = Store::new(compiler);
+            } else {
+                let store = Store::default();
+            }
+        }
         let module = Module::from_file(&store, path)?;
         Self::from_module(module, store)
     }
