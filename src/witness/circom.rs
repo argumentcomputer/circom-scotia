@@ -1,11 +1,11 @@
-//! Copyright (c) 2021 Georgios Konstantopoulos
-//! Copyright (c) Lurk Lab
-//! SPDX-License-Identifier: MIT
-//!
-//! Contributors:
-//! 
-//! - Hanting Zhang (winston@lurk-lab.com)
-//!   - Adapted the original work here: https://github.com/arkworks-rs/circom-compat/blob/master/src/witness/circom.rs
+// Copyright (c) 2021 Georgios Konstantopoulos
+// Copyright (c) Lurk Lab
+// SPDX-License-Identifier: MIT
+//
+// Contributors:
+// 
+// - Hanting Zhang (winston@lurk-lab.com)
+//   - Adapted the original work here: https://github.com/arkworks-rs/circom-compat/blob/master/src/witness/circom.rs
 
 use color_eyre::Result;
 use wasmer::{AsStoreMut, Function, Instance, Value};
