@@ -2,7 +2,7 @@ use bellperson::ConstraintSystem;
 use ff::Field;
 use nova_scotia::{calculate_witness, r1cs::CircomConfig, synthesize};
 
-use pasta_curves::vesta::Scalar as Fr;
+use pasta_curves::vesta::Base as Fr;
 use std::env::current_dir;
 
 use bellperson::util_cs::test_cs::TestConstraintSystem;
@@ -10,15 +10,15 @@ use bellperson::util_cs::Comparable;
 
 fn main() {
     let root = current_dir().unwrap().join("examples/sha256");
-    let wtns = root.join("sha256.wasm");
-    let r1cs = root.join("sha256.r1cs");
+    let wtns = root.join("circom_sha256.wasm");
+    let r1cs = root.join("circom_sha256.r1cs");
 
     let mut cs = TestConstraintSystem::<Fr>::new();
     let cfg = CircomConfig::new(wtns, r1cs).unwrap();
 
     let arg_in = ("arg_in".into(), vec![Fr::ZERO, Fr::ZERO]);
-    let inputs = vec![arg_in];
-    let witness = calculate_witness(&cfg, inputs, true).expect("msg");
+    let input = vec![arg_in];
+    let witness = calculate_witness(&cfg, input, true).expect("msg");
 
     let output = synthesize(
         &mut cs.namespace(|| "sha256_circom"),
@@ -34,4 +34,6 @@ fn main() {
     assert_eq!(30134, cs.num_constraints());
     assert_eq!(1, cs.num_inputs());
     assert_eq!(29822, cs.aux().len());
+
+    println!("Congrats! You synthesized and satisfied a circom sha256 circuit in bellperson!");
 }
