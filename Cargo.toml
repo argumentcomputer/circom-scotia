@@ -1,12 +1,12 @@
 [package]
-name = "nova-scotia"
-version = "0.4.0"
+name = "circom-scotia"
+version = "0.1.0"
 edition = "2021"
-authors = ["Nalin <novascotia@nibnalin.me>"]
-description = "Middleware to compile Circom circuits to Nova zkSNARK scheme"
-documentation = "https://github.com/nalinbhardwaj/Nova-Scotia/blob/main/README.md"
+authors = ["Hanting Zhang <winston@lurk-lab.com>"]
+description = "Middleware to compile Circom circuits to Bellperson"
+documentation = "https://github.com/lurk-lab/circom-scotia/blob/main/README.md"
 readme = "README.md"
-repository = "https://github.com/nalinbhardwaj/Nova-Scotia"
+repository = "https://github.com/lurk-lab/circom-scotia"
 license-file = "LICENSE"
 keywords = ["zkSNARKs", "cryptography", "proofs"]
 
