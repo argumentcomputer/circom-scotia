@@ -1,9 +1,19 @@
+// Copyright (c) 2022 Nalin
+// Copyright (c) Lurk Lab
+// SPDX-License-Identifier: MIT
+//
+// Contributors:
+// 
+// - Hanting Zhang (winston@lurk-lab.com)
+//   - Adapted the original work here: https://github.com/nalinbhardwaj/Nova-Scotia/blob/main/src/circom
+//   - Retrofitted to support `wasmer` witness generation.
+
 use std::{ops::DerefMut, path::{Path, PathBuf}, fs, process::Command, env::current_dir};
 
+use bellperson::{gadgets::num::AllocatedNum, ConstraintSystem, LinearCombination, SynthesisError};
 use color_eyre::Result;
-use bellperson::{ConstraintSystem, gadgets::num::AllocatedNum, SynthesisError, LinearCombination};
 use ff::PrimeField;
-use r1cs::{R1CS, CircomConfig};
+use r1cs::{CircomConfig, R1CS};
 
 use crate::reader::load_witness_from_file;
 
@@ -41,14 +51,14 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
 }
 
 /// TODO docs
-pub fn calculate_witness<F: PrimeField, I: IntoIterator<Item = (String, Vec<F>)>>(
+pub fn calculate_witness<F: PrimeField>(
     cfg: &CircomConfig<F>,
-    inputs: I,
+    input: Vec<(String, Vec<F>)>,
     sanity_check: bool,
 ) -> Result<Vec<F>> {
     let mut lock = cfg.wtns.lock().unwrap();
     let witness_calculator = lock.deref_mut();
-    witness_calculator.calculate_witness(inputs, sanity_check)
+    witness_calculator.calculate_witness(input, sanity_check)
 }
 
 /// Reference work is Nota-Scotia: https://github.com/nalinbhardwaj/Nova-Scotia
@@ -108,7 +118,6 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
         res
     };
 
-    
     for (i, constraint) in r1cs.constraints.into_iter().enumerate() {
         cs.enforce(
             || format!("constraint {}", i),

@@ -1,11 +1,22 @@
+// Copyright (c) 2021 Georgios Konstantopoulos
+// Copyright (c) Lurk Lab
+// SPDX-License-Identifier: MIT
+//
+// Contributors:
+// 
+// - Hanting Zhang (winston@lurk-lab.com)
+//   - Adapted the original work here: https://github.com/arkworks-rs/circom-compat/blob/master/src/witness/memory.rs
+//   - Retrofitted for support without `arkworks` libraries such as `ark-ff` or `ark-bignum`, which were replaced with `ff` and `crypto-bignum`.
+
+
 use crypto_bigint::{U256, Encoding};
 use ff::PrimeField;
-use wasmer::{Memory, MemoryView, AsStoreRef};
+use wasmer::{AsStoreRef, Memory, MemoryView};
 
 use color_eyre::Result;
 use std::ops::Deref;
 
-use super::witness_calculator::{u256_to_vec_u32, from_vec_u32};
+use super::witness_calculator::{from_vec_u32, u256_to_vec_u32};
 
 #[derive(Clone, Debug)]
 pub struct SafeMemory {

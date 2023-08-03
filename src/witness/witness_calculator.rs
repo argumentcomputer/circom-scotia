@@ -1,8 +1,20 @@
+// Copyright (c) 2021 Georgios Konstantopoulos
+// Copyright (c) Lurk Lab
+// SPDX-License-Identifier: MIT
+//
+// Contributors:
+// 
+// - Hanting Zhang (winston@lurk-lab.com)
+//   - Adapted the original work here: https://github.com/arkworks-rs/circom-compat/blob/master/src/witness/witness_calculator.rs
+//   - Retrofitted for support without `arkworks` libraries such as `ark-ff` or `ark-bignum`, which were replaced with `ff` and `crypto-bignum`.
+
 use super::{fnv, CircomBase, SafeMemory, Wasm};
 use color_eyre::Result;
 use crypto_bigint::U256;
 use ff::PrimeField;
-use wasmer::{imports, Function, Instance, Memory, MemoryType, Module, RuntimeError, Store, AsStoreMut};
+use wasmer::{
+    imports, AsStoreMut, Function, Instance, Memory, MemoryType, Module, RuntimeError, Store,
+};
 
 // #[cfg(feature = "circom-2")]
 // use num::ToPrimitive;
@@ -28,7 +40,6 @@ pub struct WitnessCalculator {
 struct ExitCode(u32);
 
 /// Little endian
-#[cfg(feature = "circom-2")]
 pub fn from_vec_u32<F: PrimeField>(arr: Vec<u32>) -> F {
     let mut res = F::ZERO;
     let radix = F::from(0x100000000u64);
@@ -66,7 +77,6 @@ pub fn u256_from_vec_u32(data: &[u32]) -> U256 {
 }
 
 /// Little endian
-#[cfg(feature = "circom-2")]
 pub fn u256_to_vec_u32(s: U256) -> Vec<u32> {
     let words = s.to_words();
     let (pre, res, suf) = unsafe { words.align_to::<u32>() };
@@ -88,7 +98,6 @@ impl WitnessCalculator {
     }
 
     pub fn from_module(module: Module, mut store: Store) -> Result<Self> {
-
         // Set up the memory
         let memory = Memory::new(&mut store, MemoryType::new(2000, None, false)).unwrap();
         let import_object = imports! {
@@ -115,7 +124,12 @@ impl WitnessCalculator {
 
         // Circom 2 feature flag with version 2
         #[cfg(feature = "circom-2")]
-        fn new_circom2(mut store: Store, instance: Wasm, memory: Memory, version: u32) -> Result<WitnessCalculator> {
+        fn new_circom2(
+            mut store: Store,
+            instance: Wasm,
+            memory: Memory,
+            version: u32,
+        ) -> Result<WitnessCalculator> {
             let n32 = instance.get_field_num_len32(&mut store)?;
             let mut safe_memory = SafeMemory::new(memory, n32 as usize, U256::ZERO);
             instance.get_raw_prime(&mut store)?;
@@ -138,7 +152,12 @@ impl WitnessCalculator {
             })
         }
 
-        fn new_circom1(mut store: Store, instance: Wasm, memory: Memory, version: u32) -> Result<WitnessCalculator> {
+        fn new_circom1(
+            mut store: Store,
+            instance: Wasm,
+            memory: Memory,
+            version: u32,
+        ) -> Result<WitnessCalculator> {
             // Fallback to Circom 1 behavior
             let n32 = (instance.get_fr_len(&mut store)? >> 2) - 2;
             let mut safe_memory = SafeMemory::new(memory, n32 as usize, U256::ZERO);
@@ -150,7 +169,7 @@ impl WitnessCalculator {
 
             Ok(WitnessCalculator {
                 instance,
-                store, 
+                store,
                 memory: safe_memory,
                 n64,
                 circom_version: version,
@@ -172,14 +191,14 @@ impl WitnessCalculator {
                     _ => panic!("Unknown Circom version")
                 }
             } else {
-                new_circom1(instance, memory, version)
+                new_circom1(store, instance, memory, version)
             }
         }
     }
 
-    pub fn calculate_witness<F: PrimeField, I: IntoIterator<Item = (String, Vec<F>)>>(
+    pub fn calculate_witness<F: PrimeField>(
         &mut self,
-        inputs: I,
+        input: Vec<(String, Vec<F>)>,
         sanity_check: bool,
     ) -> Result<Vec<F>> {
         self.instance.init(&mut self.store, sanity_check)?;
@@ -187,20 +206,20 @@ impl WitnessCalculator {
         cfg_if::cfg_if! {
             if #[cfg(feature = "circom-2")] {
                 match self.circom_version {
-                    2 => self.calculate_witness_circom2(inputs, sanity_check),
-                    1 => self.calculate_witness_circom1(inputs, sanity_check),
+                    2 => self.calculate_witness_circom2(input, sanity_check),
+                    1 => self.calculate_witness_circom1(input, sanity_check),
                     _ => panic!("Unknown Circom version")
                 }
             } else {
-                self.calculate_witness_circom1(inputs, sanity_check)
+                self.calculate_witness_circom1(input, sanity_check)
             }
         }
     }
 
     // Circom 1 default behavior
-    fn calculate_witness_circom1<F: PrimeField, I: IntoIterator<Item = (String, Vec<F>)>>(
+    fn calculate_witness_circom1<F: PrimeField>(
         &mut self,
-        inputs: I,
+        input: Vec<(String, Vec<F>)>,
         sanity_check: bool,
     ) -> Result<Vec<F>> {
         self.instance.init(&mut self.store, sanity_check)?;
@@ -210,7 +229,7 @@ impl WitnessCalculator {
         let p_fr = self.memory.alloc_fr(&mut self.store);
 
         // allocate the inputs
-        for (name, values) in inputs.into_iter() {
+        for (name, values) in input.into_iter() {
             let (msb, lsb) = fnv(&name);
 
             self.instance
@@ -219,7 +238,8 @@ impl WitnessCalculator {
             let sig_offset = self.memory.read_u32(&mut self.store, p_sig_offset as usize) as usize;
 
             for (i, _value) in values.into_iter().enumerate() {
-                self.memory.write_fr(&mut self.store, p_fr as usize, U256::ZERO)?; // TODO: FIXME
+                self.memory
+                    .write_fr(&mut self.store, p_fr as usize, U256::ZERO)?; // TODO: FIXME
                 self.instance
                     .set_signal(&mut self.store, 0, 0, (sig_offset + i) as u32, p_fr)?;
             }
@@ -241,9 +261,9 @@ impl WitnessCalculator {
 
     // Circom 2 feature flag with version 2
     #[cfg(feature = "circom-2")]
-    fn calculate_witness_circom2<F: PrimeField, I: IntoIterator<Item = (String, Vec<F>)>>(
+    fn calculate_witness_circom2<F: PrimeField>(
         &mut self,
-        inputs: I,
+        input: Vec<(String, Vec<F>)>,
         sanity_check: bool,
     ) -> Result<Vec<F>> {
         self.instance.init(&mut self.store, sanity_check)?;
@@ -251,7 +271,7 @@ impl WitnessCalculator {
         let n32 = self.instance.get_field_num_len32(&mut self.store)?;
 
         // allocate the inputs
-        for (name, values) in inputs.into_iter() {
+        for (name, values) in input.into_iter() {
             let (msb, lsb) = fnv(&name);
 
             for (i, value) in values.into_iter().enumerate() {
@@ -260,7 +280,8 @@ impl WitnessCalculator {
                     self.instance
                         .write_shared_rw_memory(&mut self.store, j, f_arr[j as usize])?;
                 }
-                self.instance.set_input_signal(&mut self.store, msb, lsb, i as u32)?;
+                self.instance
+                    .set_input_signal(&mut self.store, msb, lsb, i as u32)?;
             }
         }
 
@@ -271,7 +292,8 @@ impl WitnessCalculator {
             self.instance.get_witness(&mut self.store, i)?;
             let mut arr = vec![0; n32 as usize];
             for j in 0..n32 {
-                arr[(n32 as usize) - 1 - (j as usize)] = self.instance.read_shared_rw_memory(&mut self.store, j)?;
+                arr[(n32 as usize) - 1 - (j as usize)] =
+                    self.instance.read_shared_rw_memory(&mut self.store, j)?;
             }
             w.push(from_vec_u32(arr));
         }
