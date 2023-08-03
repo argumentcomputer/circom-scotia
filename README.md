@@ -1,6 +1,6 @@
 # Circom Scotia
 
-### Middleware to compile [Circom](https://github.com/iden3/circom) circuits to [Nova](https://github.com/microsoft/Nova) prover
+### Middleware to compile [Circom](https://github.com/iden3/circom) circuits to [Bellperson](https://github.com/filecoin-project/bellperson)
 
 ![rose-pattern-porcelain-white-background](assets/rose-pattern-porcelain.jpg)
 
@@ -65,14 +65,12 @@ For the full code, see the [`sha256.rs`](https://github.com/lurk-lab/circom-scot
 
 ### TODO list
 
-- [ ] Switch Nova to BN254/grumpkin cycle to make it work on Ethereum chain! This should be doable since Nova only needs DLOG hardness.
-- [ ] Write Relaxed R1CS verifiers in plonk/groth16 libraries (ex. Halo 2, Circom).
 - [ ] Generic big integers were replaced by `U256`, so currently we do not generalize to prime field of size greater than 256 bits.
 
 
 ### Credits
 
-Credits to the original [Nova implementation and paper](https://github.com/microsoft/Nova) by Srinath Setty/Microsoft Research, and the [Circom language](https://github.com/iden3/circom) from the iden3 team.
+Credits to the [Circom language](https://github.com/iden3/circom) from the iden3 team.
 
 The parsing and generation borrows judiciously from [Nova-Scotia](https://github.com/nalinbhardwaj/Nova-Scotia) and [ark-circom](https://github.com/gakonst/ark-circom), respectively. All the loading code is essentially copied over. The `wasmer` witness generator was copied, then retrofitted for support without `arkworks` libraries such as `ark-ff` or `ark-bignum`; these were replaced with `ff` and `crypto-bignum`. The other bits that glue everything together is original.
 
