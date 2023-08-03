@@ -1,6 +1,6 @@
 use bellperson::ConstraintSystem;
 use ff::Field;
-use nova_scotia::{calculate_witness, r1cs::CircomConfig, synthesize};
+use circom_scotia::{calculate_witness, r1cs::CircomConfig, synthesize};
 
 use pasta_curves::vesta::Base as Fr;
 use std::env::current_dir;
