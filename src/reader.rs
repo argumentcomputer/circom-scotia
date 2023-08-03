@@ -1,4 +1,5 @@
 use anyhow::bail;
+use crypto_bigint::U256;
 use ff::PrimeField;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -160,14 +161,25 @@ fn read_field<R: Read, Fr: PrimeField>(mut reader: R) -> Result<Fr, Error> {
     Ok(fr)
 }
 
-fn read_header<R: Read>(mut reader: R, size: u64) -> Result<Header, Error> {
+fn read_header<R: Read>(mut reader: R, size: u64, expected_prime: &str) -> Result<Header, Error> {
     let field_size = reader.read_u32::<LittleEndian>()?;
-    let mut prime_size = vec![0u8; field_size as usize];
-    reader.read_exact(&mut prime_size)?;
+
     if size != 32 + field_size as u64 {
         return Err(Error::new(
             ErrorKind::InvalidData,
             "Invalid header section size",
+        ));
+    }
+
+    let mut prime_size = vec![0u8; field_size as usize];
+    reader.read_exact(&mut prime_size)?;
+    let prime = U256::from_le_slice(&prime_size);
+    let prime = &prime.to_string().to_ascii_lowercase();
+
+    if prime != &expected_prime[2..] { // get rid of '0x' in the front
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Mismatched prime field. Expected {expected_prime}, read {prime} in the header instead."),
         ));
     }
 
@@ -269,7 +281,11 @@ fn from_reader<Fr: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile
     let wire2label_type = 3;
 
     reader.seek(SeekFrom::Start(*section_offsets.get(&header_type).unwrap()))?;
-    let header = read_header(&mut reader, *section_sizes.get(&header_type).unwrap())?;
+    let header = read_header(
+        &mut reader,
+        *section_sizes.get(&header_type).unwrap(),
+        Fr::MODULUS,
+    )?;
     if header.field_size != 32 {
         return Err(Error::new(
             ErrorKind::InvalidData,
