@@ -1,9 +1,15 @@
-use std::{ops::DerefMut, path::{Path, PathBuf}, fs, process::Command, env::current_dir};
+use std::{
+    env::current_dir,
+    fs,
+    ops::DerefMut,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
+use bellperson::{gadgets::num::AllocatedNum, ConstraintSystem, LinearCombination, SynthesisError};
 use color_eyre::Result;
-use bellperson::{ConstraintSystem, gadgets::num::AllocatedNum, SynthesisError, LinearCombination};
 use ff::PrimeField;
-use r1cs::{R1CS, CircomConfig};
+use r1cs::{CircomConfig, R1CS};
 
 use crate::reader::load_witness_from_file;
 
@@ -108,7 +114,6 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
         res
     };
 
-    
     for (i, constraint) in r1cs.constraints.into_iter().enumerate() {
         cs.enforce(
             || format!("constraint {}", i),

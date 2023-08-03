@@ -1,9 +1,9 @@
-use std::{path::Path, io, sync::Mutex};
+use std::{io, path::Path, sync::Mutex};
 
 use ff::PrimeField;
 use serde::{Deserialize, Serialize};
 
-use crate::{witness::WitnessCalculator, reader::load_r1cs};
+use crate::{reader::load_r1cs, witness::WitnessCalculator};
 
 #[allow(dead_code)]
 #[derive(Clone)]

@@ -1,11 +1,11 @@
-use crypto_bigint::{U256, Encoding};
+use crypto_bigint::{Encoding, U256};
 use ff::PrimeField;
-use wasmer::{Memory, MemoryView, AsStoreRef};
+use wasmer::{AsStoreRef, Memory, MemoryView};
 
 use color_eyre::Result;
 use std::ops::Deref;
 
-use super::witness_calculator::{u256_to_vec_u32, from_vec_u32};
+use super::witness_calculator::{from_vec_u32, u256_to_vec_u32};
 
 #[derive(Clone, Debug)]
 pub struct SafeMemory {

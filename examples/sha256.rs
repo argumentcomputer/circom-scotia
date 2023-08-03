@@ -29,7 +29,7 @@ fn main() {
     let expected = "0x00000000008619b3767c057fdf8e6d99fde2680c5d8517eb06761c0878d40c40";
     let output_num = format!("{:?}", output.unwrap().get_value().unwrap());
     assert!(output_num == expected);
-    
+
     assert!(cs.is_satisfied());
     assert_eq!(30134, cs.num_constraints());
     assert_eq!(1, cs.num_inputs());
