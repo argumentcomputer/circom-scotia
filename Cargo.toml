@@ -34,7 +34,7 @@ wasmer = "4.0.0"
 wasmer-compiler-llvm = "4.1.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasmer = { version = "4.0.0", features = ["core", "js"], default-features = false }
+wasmer = { version = "4.0.0", features = ["std", "js"], default-features = false }
 getrandom = { version = "0.2.10", features = ["js"] }
 
 [features]
