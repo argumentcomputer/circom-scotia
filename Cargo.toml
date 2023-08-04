@@ -35,6 +35,7 @@ wasmer-compiler-llvm = "4.1.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasmer = { version = "4.0.0", features = ["js"] }
+getrandom = { version = "0.2.10", features = ["js"] }
 
 [features]
 default = ["circom-2"]
