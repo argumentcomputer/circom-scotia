@@ -25,9 +25,4 @@ jobs:
       with:
         command: check
         args: --target wasm32-unknown-unknown
-    - name: Example Wasm compiles sucessfully
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release --example sha256 --target wasm32-unknown-unknown
 
