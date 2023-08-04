@@ -68,13 +68,14 @@ pub fn to_vec_u32<F: PrimeField>(f: F) -> Vec<u32> {
 /// Little endian
 #[cfg(feature = "circom-2")]
 pub fn u256_from_vec_u32(data: &[u32]) -> U256 {
-    use std::ops::Deref;
 
     let mut limbs = [0u32; 8];
     limbs.copy_from_slice(data);
 
     cfg_if::cfg_if! {
         if #[cfg(target_pointer_width = "64")] {
+            use std::ops::Deref;
+            
             let (pre, limbs, suf) = unsafe { limbs.align_to::<u64>() };
             assert_eq!(pre.len(), 0);
             assert_eq!(suf.len(), 0);
