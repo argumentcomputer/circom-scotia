@@ -1,4 +1,4 @@
-MIT License
+## MIT License
 
 Copyright (c) 2023 Lurk Lab
 
@@ -19,3 +19,24 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+### Third-Party Licenses
+
+Portions of this software utilize code from the following projects:
+
+#### Nova-Scotia
+Copyright (c) 2022 Nalin Bhardwaj
+
+This software includes code from: https://github.com/nalinbhardwaj/Nova-Scotia
+Licensed under the MIT License. The license can be found at https://opensource.org/licenses/MIT.
+
+#### circom-compat
+Copyright (c) 2021 Georgios Konstantopoulos
+
+This software includes code from: https://github.com/arkworks-rs/circom-compat/tree/master
+Dual-licensed under MIT & Apache License 2.0. The licenses can be found at https://opensource.org/licenses/MIT and https://www.apache.org/licenses/LICENSE-2.0 respectively.
+
+---
+
+The above acknowledgements are made in good faith and all licenses and copyright notices should be complied with. If you believe any acknowledgements have been inadequately or incorrectly made, please contact engineering@lurk-lab.com
