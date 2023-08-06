@@ -1,28 +1,49 @@
 name: Tests
 on: [push, pull_request]
 env:
-  NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-  NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+  CARGO_TERM_COLOR: always
 jobs:
-  check-sha256-example:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - run: cargo test
-      - run: cargo run --release --example sha256
-  check-sha256-example-wasm:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
-        target: wasm32-unknown-unknown
-    - name: Check Build
-      uses: actions-rs/cargo@v1
-      with:
-        command: check
-        args: --target wasm32-unknown-unknown
+      - name: Checkout code
+        uses: actions/checkout@v3
 
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v1
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+          components: rustfmt, clippy
+          target: wasm32-unknown-unknown
+
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - name: Run cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-targets --all-features -- -D warnings
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target wasm32-unknown-unknown
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --target wasm32-unknown-unknown
+
+      - name: Run sha256 example
+        run: cargo run --release --example sha256
