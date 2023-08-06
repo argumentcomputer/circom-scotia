@@ -156,7 +156,7 @@ fn load_r1cs_from_bin_file<F: PrimeField>(filename: impl AsRef<Path>) -> R1CS<F>
     let reader = OpenOptions::new()
         .read(true)
         .open(filename.as_ref())
-        .expect(&format!("unable to open {:?}", filename.as_ref()));
+        .unwrap_or_else(|_| panic!("unable to open {:?}", filename.as_ref()));
     load_r1cs_from_bin(BufReader::new(reader))
 }
 
