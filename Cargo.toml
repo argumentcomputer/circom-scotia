@@ -26,8 +26,18 @@ pasta_curves = { version = "0.5.1" }
 serde = "1.0"
 serde_json = "1.0.85"
 thiserror = "1.0.43"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 wasmer = "4.0.0"
+
+[target.'cfg(all(not(target_arch = "wasm32"), features = "llvm"))'.dependencies]
+wasmer-compiler-llvm = "4.1.1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasmer = { version = "4.0.0", features = ["std", "js"], default-features = false }
+getrandom = { version = "0.2.10", features = ["js"] }
 
 [features]
 default = ["circom-2"]
 circom-2 = []
+llvm = []

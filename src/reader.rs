@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 //
 // Contributors:
-// 
+//
 // - Hanting Zhang (winston@lurk-lab.com)
 //   - Adapted the original work here: https://github.com/nalinbhardwaj/Nova-Scotia/blob/main/src/circom/reader.rs
 
@@ -185,7 +185,8 @@ fn read_header<R: Read>(mut reader: R, size: u64, expected_prime: &str) -> Resul
     let prime = U256::from_le_slice(&prime_size);
     let prime = &prime.to_string().to_ascii_lowercase();
 
-    if prime != &expected_prime[2..] { // get rid of '0x' in the front
+    if prime != &expected_prime[2..] {
+        // get rid of '0x' in the front
         return Err(Error::new(
             ErrorKind::InvalidData,
             format!("Mismatched prime field. Expected {expected_prime}, read {prime} in the header instead."),

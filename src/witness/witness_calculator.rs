@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 //
 // Contributors:
-// 
+//
 // - Hanting Zhang (winston@lurk-lab.com)
 //   - Adapted the original work here: https://github.com/arkworks-rs/circom-compat/blob/master/src/witness/witness_calculator.rs
 //   - Retrofitted for support without `arkworks` libraries such as `ark-ff` or `ark-bignum`, which were replaced with `ff` and `crypto-bignum`.
@@ -15,6 +15,9 @@ use ff::PrimeField;
 use wasmer::{
     imports, AsStoreMut, Function, Instance, Memory, MemoryType, Module, RuntimeError, Store,
 };
+
+#[cfg(feature = "llvm")]
+use wasmer_compiler_llvm::LLVM;
 
 // #[cfg(feature = "circom-2")]
 // use num::ToPrimitive;
@@ -65,15 +68,22 @@ pub fn to_vec_u32<F: PrimeField>(f: F) -> Vec<u32> {
 /// Little endian
 #[cfg(feature = "circom-2")]
 pub fn u256_from_vec_u32(data: &[u32]) -> U256 {
-    use std::ops::Deref;
 
     let mut limbs = [0u32; 8];
     limbs.copy_from_slice(data);
-    let (pre, limbs, suf) = unsafe { limbs.align_to::<u64>() };
-    assert_eq!(pre.len(), 0);
-    assert_eq!(suf.len(), 0);
 
-    U256::from_words(limbs.deref().try_into().unwrap())
+    cfg_if::cfg_if! {
+        if #[cfg(target_pointer_width = "64")] {
+            use std::ops::Deref;
+            
+            let (pre, limbs, suf) = unsafe { limbs.align_to::<u64>() };
+            assert_eq!(pre.len(), 0);
+            assert_eq!(suf.len(), 0);
+            U256::from_words(limbs.deref().try_into().unwrap())
+        } else {
+            U256::from_words(limbs.as_ref().try_into().unwrap())
+        }
+    }
 }
 
 /// Little endian
@@ -92,7 +102,14 @@ impl WitnessCalculator {
     }
 
     pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self> {
-        let store = Store::default();
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "llvm")] {
+                let compiler = LLVM::new();
+                let store = Store::new(compiler);
+            } else {
+                let store = Store::default();
+            }
+        }
         let module = Module::from_file(&store, path)?;
         Self::from_module(module, store)
     }
