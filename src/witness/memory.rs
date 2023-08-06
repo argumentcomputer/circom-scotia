@@ -154,7 +154,7 @@ impl SafeMemory {
     pub fn read_big(&self, store: &impl AsStoreRef, ptr: usize) -> U256 {
         let view = self.view(store);
         let buf = unsafe { view.data_unchecked() };
-        let big = U256::from_le_slice(&buf[ptr..]);
-        big.into()
+
+        U256::from_le_slice(&buf[ptr..])
     }
 }
