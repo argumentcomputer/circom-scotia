@@ -68,14 +68,13 @@ pub fn to_vec_u32<F: PrimeField>(f: F) -> Vec<u32> {
 /// Little endian
 #[cfg(feature = "circom-2")]
 pub fn u256_from_vec_u32(data: &[u32]) -> U256 {
-
     let mut limbs = [0u32; 8];
     limbs.copy_from_slice(data);
 
     cfg_if::cfg_if! {
         if #[cfg(target_pointer_width = "64")] {
             use std::ops::Deref;
-            
+
             let (pre, limbs, suf) = unsafe { limbs.align_to::<u64>() };
             assert_eq!(pre.len(), 0);
             assert_eq!(suf.len(), 0);
@@ -179,7 +178,7 @@ impl WitnessCalculator {
             let n32 = (instance.get_fr_len(&mut store)? >> 2) - 2;
             let mut safe_memory = SafeMemory::new(memory, n32 as usize, U256::ZERO);
             let ptr = instance.get_ptr_raw_prime(&mut store)?;
-            let prime = safe_memory.read_big(&mut store, ptr as usize);
+            let prime = safe_memory.read_big(&store, ptr as usize);
 
             let n64 = ((prime.bits() - 1) / 64 + 1) as u32;
             safe_memory.prime = prime;
@@ -241,9 +240,9 @@ impl WitnessCalculator {
     ) -> Result<Vec<F>> {
         self.instance.init(&mut self.store, sanity_check)?;
 
-        let old_mem_free_pos = self.memory.free_pos(&mut self.store);
-        let p_sig_offset = self.memory.alloc_u32(&mut self.store);
-        let p_fr = self.memory.alloc_fr(&mut self.store);
+        let old_mem_free_pos = self.memory.free_pos(&self.store);
+        let p_sig_offset = self.memory.alloc_u32(&self.store);
+        let p_fr = self.memory.alloc_fr(&self.store);
 
         // allocate the inputs
         for (name, values) in input.into_iter() {
@@ -252,11 +251,11 @@ impl WitnessCalculator {
             self.instance
                 .get_signal_offset32(&mut self.store, p_sig_offset, 0, msb, lsb)?;
 
-            let sig_offset = self.memory.read_u32(&mut self.store, p_sig_offset as usize) as usize;
+            let sig_offset = self.memory.read_u32(&self.store, p_sig_offset as usize) as usize;
 
             for (i, _value) in values.into_iter().enumerate() {
                 self.memory
-                    .write_fr(&mut self.store, p_fr as usize, U256::ZERO)?; // TODO: FIXME
+                    .write_fr(&self.store, p_fr as usize, U256::ZERO)?; // TODO: FIXME
                 self.instance
                     .set_signal(&mut self.store, 0, 0, (sig_offset + i) as u32, p_fr)?;
             }
@@ -267,11 +266,11 @@ impl WitnessCalculator {
         let n_vars = self.instance.get_n_vars(&mut self.store)?;
         for i in 0..n_vars {
             let ptr = self.instance.get_ptr_witness(&mut self.store, i)? as usize;
-            let el = self.memory.read_fr(&mut self.store, ptr);
+            let el = self.memory.read_fr(&self.store, ptr);
             w.push(el);
         }
 
-        self.memory.set_free_pos(&mut self.store, old_mem_free_pos);
+        self.memory.set_free_pos(&self.store, old_mem_free_pos);
 
         Ok(w)
     }
@@ -324,10 +323,7 @@ impl WitnessCalculator {
         let view = self.memory.view(store);
         let bytes = unsafe { view.data_unchecked() };
 
-        let arr = bytes[ptr..ptr + len as usize]
-            .iter()
-            .map(|b| *b)
-            .collect::<Vec<_>>();
+        let arr = bytes[ptr..ptr + len as usize].to_vec();
 
         Ok(arr)
     }
