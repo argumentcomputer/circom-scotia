@@ -115,15 +115,12 @@ impl SafeMemory {
         let view = self.view(store);
         let view = unsafe { view.data_unchecked_mut() };
 
-        let f;
         if view[ptr + 7] & 0x80 != 0 {
             let num = self.read_big(store, ptr + 8);
-            f = from_vec_u32(u256_to_vec_u32(num));
+            from_vec_u32(u256_to_vec_u32(num))
         } else {
-            f = F::from(self.read_u32(store, ptr) as u64);
+            F::from(self.read_u32(store, ptr) as u64)
         }
-
-        f
     }
 
     fn write_short(&mut self, store: &impl AsStoreRef, ptr: usize, fr: U256) -> Result<()> {
