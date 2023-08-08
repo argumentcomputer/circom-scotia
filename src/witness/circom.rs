@@ -121,7 +121,7 @@ impl Circom2 for Wasm {
 impl CircomBase for Wasm {
     fn init(&self, store: &mut impl AsStoreMut, sanity_check: bool) -> Result<()> {
         let func = self.func("init");
-        func.call(store, &[Value::I32(sanity_check as i32)])?;
+        func.call(store, &[Value::I32(i32::from(sanity_check))])?;
         Ok(())
     }
 
