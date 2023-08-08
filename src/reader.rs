@@ -123,7 +123,7 @@ fn load_witness_from_bin_reader<Fr: PrimeField, R: Read>(
         bail!("invalid section type");
     }
     let sec_size = reader.read_u64::<LittleEndian>()?;
-    if sec_size != (witness_len * field_size) as u64 {
+    if sec_size != u64::from(witness_len * field_size) {
         bail!("invalid witness section size {}", sec_size);
     }
     let mut result = Vec::with_capacity(witness_len as usize);
@@ -173,7 +173,7 @@ fn read_field<R: Read, Fr: PrimeField>(mut reader: R) -> Result<Fr, Error> {
 fn read_header<R: Read>(mut reader: R, size: u64, expected_prime: &str) -> Result<Header, Error> {
     let field_size = reader.read_u32::<LittleEndian>()?;
 
-    if size != 32 + field_size as u64 {
+    if size != 32 + u64::from(field_size) {
         return Err(Error::new(
             ErrorKind::InvalidData,
             "Invalid header section size",
@@ -238,7 +238,7 @@ fn read_constraints<R: Read, Fr: PrimeField>(
 }
 
 fn read_map<R: Read>(mut reader: R, size: u64, header: &Header) -> Result<Vec<u64>, Error> {
-    if size != header.n_wires as u64 * 8 {
+    if size != u64::from(header.n_wires) * 8 {
         return Err(Error::new(
             ErrorKind::InvalidData,
             "Invalid map section size",

@@ -45,9 +45,9 @@ struct ExitCode(u32);
 /// Little endian
 pub fn from_vec_u32<F: PrimeField>(arr: Vec<u32>) -> F {
     let mut res = F::ZERO;
-    let radix = F::from(0x100000000u64);
-    for &val in arr.iter() {
-        res = res * radix + F::from(val as u64);
+    let radix = F::from(0x0001_0000_0000_u64);
+    for &val in &arr {
+        res = res * radix + F::from(u64::from(val));
     }
     res
 }
@@ -245,7 +245,7 @@ impl WitnessCalculator {
         let p_fr = self.memory.alloc_fr(&self.store);
 
         // allocate the inputs
-        for (name, values) in input.into_iter() {
+        for (name, values) in input {
             let (msb, lsb) = fnv(&name);
 
             self.instance
@@ -287,7 +287,7 @@ impl WitnessCalculator {
         let n32 = self.instance.get_field_num_len32(&mut self.store)?;
 
         // allocate the inputs
-        for (name, values) in input.into_iter() {
+        for (name, values) in input {
             let (msb, lsb) = fnv(&name);
 
             for (i, value) in values.into_iter().enumerate() {
@@ -331,7 +331,7 @@ impl WitnessCalculator {
 
 // callback hooks for debugging
 mod runtime {
-    use super::*;
+    use super::{AsStoreMut, ExitCode, Function, Result, RuntimeError};
 
     pub fn error(store: &mut impl AsStoreMut) -> Function {
         #[allow(unused)]

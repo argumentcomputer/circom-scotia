@@ -11,7 +11,6 @@
 use std::{
     env::current_dir,
     fs,
-    ops::DerefMut,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -63,7 +62,7 @@ pub fn calculate_witness<F: PrimeField>(
     sanity_check: bool,
 ) -> Result<Vec<F>> {
     let mut lock = cfg.wtns.lock().unwrap();
-    let witness_calculator = lock.deref_mut();
+    let witness_calculator = &mut *lock;
     witness_calculator.calculate_witness(input, sanity_check)
 }
 

@@ -36,7 +36,7 @@ impl Deref for SafeMemory {
 }
 
 impl SafeMemory {
-    /// Creates a new SafeMemory
+    /// Creates a new `SafeMemory`
     pub fn new(memory: Memory, n32: usize, prime: U256) -> Self {
         // TODO: Figure out a better way to calculate these
         let short_max = U256::from(0x8000_0000u64);
@@ -119,7 +119,7 @@ impl SafeMemory {
             let num = self.read_big(store, ptr + 8);
             from_vec_u32(u256_to_vec_u32(num))
         } else {
-            F::from(self.read_u32(store, ptr) as u64)
+            F::from(u64::from(self.read_u32(store, ptr)))
         }
     }
 
