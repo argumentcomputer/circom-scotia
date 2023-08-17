@@ -7,6 +7,7 @@ description = "Middleware to compile Circom circuits to Bellperson"
 documentation = "https://github.com/lurk-lab/circom-scotia/blob/main/README.md"
 readme = "README.md"
 repository = "https://github.com/lurk-lab/circom-scotia"
+license = "MIT OR Apache-2.0"
 license-file = "LICENSE"
 keywords = ["zkSNARKs", "cryptography", "proofs"]
 
@@ -28,8 +29,6 @@ thiserror = "1.0.43"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 wasmer = "4.0.0"
-
-[target.'cfg(all(not(target_arch = "wasm32"), features = "llvm"))'.dependencies]
 wasmer-compiler-llvm = { version = "4.1.1", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -42,4 +41,4 @@ pasta_curves = { version = "0.5.1" }
 [features]
 default = ["circom-2"]
 circom-2 = []
-llvm = ["wasmer-compiler-llvm"]
+llvm = ["dep:wasmer-compiler-llvm"]
