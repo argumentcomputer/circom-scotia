@@ -5,8 +5,8 @@ use ff::Field;
 use pasta_curves::vesta::Base as Fr;
 use std::env::current_dir;
 
-use bellperson::util_cs::test_cs::TestConstraintSystem;
 use bellpepper_core::Comparable;
+use bellperson::util_cs::test_cs::TestConstraintSystem;
 
 fn main() {
     let root = current_dir().unwrap().join("examples/sha256");
