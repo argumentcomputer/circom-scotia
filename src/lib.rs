@@ -15,7 +15,7 @@ use std::{
     process::Command,
 };
 
-use bellperson::{gadgets::num::AllocatedNum, ConstraintSystem, LinearCombination, SynthesisError};
+use bellpepper_core::{num::AllocatedNum, ConstraintSystem, LinearCombination, SynthesisError};
 use color_eyre::Result;
 use ff::PrimeField;
 use r1cs::{CircomConfig, R1CS};
