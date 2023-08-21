@@ -6,7 +6,7 @@ use pasta_curves::vesta::Base as Fr;
 use std::env::current_dir;
 
 use bellperson::util_cs::test_cs::TestConstraintSystem;
-use bellperson::util_cs::Comparable;
+use bellpepper_core::Comparable;
 
 fn main() {
     let root = current_dir().unwrap().join("examples/sha256");
