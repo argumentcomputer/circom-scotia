@@ -1,12 +1,12 @@
-use bellperson::ConstraintSystem;
+use bellpepper_core::ConstraintSystem;
 use circom_scotia::{calculate_witness, r1cs::CircomConfig, synthesize};
 use ff::Field;
 
 use pasta_curves::vesta::Base as Fr;
 use std::env::current_dir;
 
-use bellperson::util_cs::test_cs::TestConstraintSystem;
-use bellperson::util_cs::Comparable;
+use bellpepper_core::test_cs::TestConstraintSystem;
+use bellpepper_core::Comparable;
 
 fn main() {
     let root = current_dir().unwrap().join("examples/sha256");

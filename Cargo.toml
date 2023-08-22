@@ -8,14 +8,13 @@ documentation = "https://github.com/lurk-lab/circom-scotia/blob/main/README.md"
 readme = "README.md"
 repository = "https://github.com/lurk-lab/circom-scotia"
 license = "MIT OR Apache-2.0"
-license-file = "LICENSE"
 keywords = ["zkSNARKs", "cryptography", "proofs"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.65"
-bellperson = "0.25"
+bellpepper-core = "0.2.1"
 byteorder = "1.4.3"
 cfg-if = "1.0.0"
 color-eyre = "0.6.2"
