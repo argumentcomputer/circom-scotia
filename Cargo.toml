@@ -14,7 +14,7 @@ keywords = ["zkSNARKs", "cryptography", "proofs"]
 
 [dependencies]
 anyhow = "1.0.65"
-bellpepper-core = "0.2.1"
+bellpepper-core = { git = "https://github.com/lurk-lab/bellpepper", branch = "dev" }
 byteorder = "1.4.3"
 cfg-if = "1.0.0"
 color-eyre = "0.6.2"
