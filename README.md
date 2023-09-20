@@ -1,6 +1,6 @@
 # Circom Scotia
 
-### Middleware to compile [Circom](https://github.com/iden3/circom) circuits to [Bellperson](https://github.com/filecoin-project/bellperson)
+### Middleware to compile [Circom](https://github.com/iden3/circom) circuits to [Bellpepper](https://github.com/lurk-lab/bellpepper)
 
 ![rose-pattern-porcelain-white-background](assets/rose-pattern-porcelain.jpg)
 
