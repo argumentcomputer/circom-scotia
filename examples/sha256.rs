@@ -35,5 +35,5 @@ fn main() {
     assert_eq!(1, cs.num_inputs());
     assert_eq!(29822, cs.aux().len());
 
-    println!("Congrats! You synthesized and satisfied a circom sha256 circuit in bellperson!");
+    println!("Congrats! You synthesized and satisfied a circom sha256 circuit in bellpepper!");
 }
