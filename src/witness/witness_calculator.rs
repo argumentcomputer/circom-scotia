@@ -73,12 +73,10 @@ pub fn u256_from_vec_u32(data: &[u32]) -> U256 {
 
     cfg_if::cfg_if! {
         if #[cfg(target_pointer_width = "64")] {
-            use std::ops::Deref;
-
             let (pre, limbs, suf) = unsafe { limbs.align_to::<u64>() };
             assert_eq!(pre.len(), 0);
             assert_eq!(suf.len(), 0);
-            U256::from_words(limbs.deref().try_into().unwrap())
+            U256::from_words(limbs.try_into().unwrap())
         } else {
             U256::from_words(limbs.as_ref().try_into().unwrap())
         }
