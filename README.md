@@ -8,7 +8,7 @@ This repository provides necessary middleware to take generated output of the Ci
 
 ## How?
 
-To use it yourself, install version 2.1.6 of greater of [Circom](https://docs.circom.io). Refer to the [Circom documentation](https://docs.circom.io/getting-started/installation/#installing-dependencies) for more information.
+To use it yourself, install version 2.1.6 or greater of [Circom](https://docs.circom.io). Refer to the [Circom documentation](https://docs.circom.io/getting-started/installation/#installing-dependencies) for more information.
 
 When you're ready, compile your circuit using `circom [file].circom --r1cs --wasm --prime vesta` for the vesta curve. We will later use the R1CS file (`[file].r1cs`) and the witness generator (`[file]_js/[file].wasm`), so make note of their filepaths. You can independently test these circuits by running witness generation as described in the [Circom documentation](https://docs.circom.io/getting-started/computing-the-witness/).
 
