@@ -71,7 +71,7 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
     cs: &mut CS,
     r1cs: R1CS<F>,
     witness: Option<Vec<F>>,
-) -> Result<AllocatedNum<F>, SynthesisError> {
+) -> Result<Vec<AllocatedNum<F>>, SynthesisError> {
     //println!("witness: {:?}", witness);
     //println!("num_inputs: {:?}", r1cs.num_inputs);
     //println!("num_aux: {:?}", r1cs.num_aux);
@@ -132,5 +132,5 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
         );
     }
 
-    Ok(output)
+    Ok(vars)
 }
