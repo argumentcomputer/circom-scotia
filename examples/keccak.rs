@@ -1,5 +1,5 @@
 use bellpepper_core::ConstraintSystem;
-use circom_scotia::{calculate_witness, r1cs::CircomConfig};
+use circom_scotia::{calculate_witness, r1cs::CircomConfig, synthesize};
 
 use pasta_curves::vesta::Base as Fr;
 use std::env::current_dir;
@@ -33,10 +33,22 @@ fn main() {
     let input = vec![arg_in];
     let witness = calculate_witness(&cfg, input, true).expect("msg");
 
-    let state_out_fq: &[Fq] = &witness[1..1 + (32 * 8)];
+    let output = synthesize(
+        &mut cs.namespace(|| "keccak_circom"),
+        cfg.r1cs.clone(),
+        Some(witness),
+    );
+
+    let state_out_fq = output.unwrap();
     let state_out_bits: Vec<bool> = state_out_fq
         .iter()
-        .map(|fq| if Fq::one() == *fq { true } else { false })
+        .map(|an| {
+            if Fq::one() == an.get_value().unwrap() {
+                true
+            } else {
+                false
+            }
+        })
         .collect();
     let state_out_bytes = bits_to_bytes(&state_out_bits);
 

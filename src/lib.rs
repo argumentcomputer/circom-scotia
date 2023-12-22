@@ -66,6 +66,8 @@ pub fn calculate_witness<F: PrimeField>(
     witness_calculator.calculate_witness(input, sanity_check)
 }
 
+/// Parse the witness that we calculated from the circuit to update our constraint system based on it
+/// and  extract the public outputs to return it.
 /// Reference work is Nota-Scotia: https://github.com/nalinbhardwaj/Nova-Scotia
 pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
     cs: &mut CS,
@@ -73,9 +75,9 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
     witness: Option<Vec<F>>,
 ) -> Result<Vec<AllocatedNum<F>>, SynthesisError> {
     let witness = &witness;
-
     let mut vars: Vec<AllocatedNum<F>> = vec![];
 
+    // Retrieve all our public signals (inputs and outputs).
     for i in 1..r1cs.num_inputs {
         let f: F = {
             match witness {
@@ -88,8 +90,8 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
         vars.push(v);
     }
 
+    // Retrieve all private traces.
     for i in 0..r1cs.num_aux {
-        // Private witness trace
         let f: F = {
             match witness {
                 None => F::ONE,
@@ -101,8 +103,17 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
         vars.push(v);
     }
 
-    let output = vars[0].clone();
+    // Public output to return.
+    let output = match r1cs.num_pub_out {
+        0 => vec![],
+        1 => vec![vars[0].clone()],
+        _ => vars[0..r1cs.num_pub_out - 1usize]
+            .iter()
+            .map(|an| an.clone())
+            .collect::<Vec<AllocatedNum<F>>>(),
+    };
 
+    // Create closure responsible to create the linear combination data.
     let make_lc = |lc_data: Vec<(usize, F)>| {
         let res = lc_data.iter().fold(
             LinearCombination::<F>::zero(),
@@ -126,5 +137,5 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
         );
     }
 
-    Ok(vars)
+    Ok(output)
 }
