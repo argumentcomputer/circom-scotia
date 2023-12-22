@@ -1,12 +1,10 @@
 use bellpepper_core::ConstraintSystem;
-use circom_scotia::{calculate_witness, r1cs::CircomConfig, synthesize};
-use ff::{Field, PrimeField, PrimeFieldBits};
+use circom_scotia::{calculate_witness, r1cs::CircomConfig};
 
 use pasta_curves::vesta::Base as Fr;
 use std::env::current_dir;
 
 use bellpepper_core::test_cs::TestConstraintSystem;
-use bellpepper_core::Comparable;
 use pasta_curves::Fq;
 
 fn main() {
@@ -16,119 +14,38 @@ fn main() {
 
     let mut cs = TestConstraintSystem::<Fr>::new();
     let cfg = CircomConfig::new(wtns, r1cs).unwrap();
-    // Input that corresponds to [116, 101, 115, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    // 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] bytes
-    let input_bits = vec![
-        false, true, true, true, false, true, false, false, false, true, true, false, false, true,
-        false, true, false, true, true, true, false, false, true, true, false, true, true, true,
-        false, true, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false,
+
+    let input_bytes = [
+        116, 101, 115, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0,
     ];
+    let expected_output = [
+        37, 17, 98, 135, 161, 178, 88, 97, 125, 150, 143, 65, 228, 211, 170, 133, 153, 9, 88, 212,
+        4, 212, 175, 238, 249, 210, 214, 116, 170, 85, 45, 21,
+    ];
+
+    let input_bits = bytes_to_bits(&input_bytes);
 
     let arg_in = (
         "in".into(),
         input_bits.clone().iter().map(|b| Fr::from(*b)).collect(),
     );
-    let input_bytes = bits_to_bytes(&input_bits);
-    println!("Input bytes: {:?}", &input_bytes);
-
     let input = vec![arg_in];
     let witness = calculate_witness(&cfg, input, true).expect("msg");
-    // From how it is handled in https://github.com/vocdoni/keccak256-circom/blob/master/test/keccak.js#L32-L33
-    let state_out_fq = &witness[1..1 + (32 * 8)];
-    let state_out_bits = fq_to_bits(&state_out_fq);
+
+    let state_out_fq: &[Fq] = &witness[1..1 + (32 * 8)];
+    let state_out_bits: Vec<bool> = state_out_fq
+        .iter()
+        .map(|fq| if Fq::one() == *fq { true } else { false })
+        .collect();
     let state_out_bytes = bits_to_bytes(&state_out_bits);
-    println!(
-        "Output bits: {:?}",
-        state_out_fq
-            .iter()
-            .map(|n| {
-                if n == &Fq::one() {
-                    1
-                } else {
-                    0
-                }
-            })
-            .collect::<Vec<u8>>()
-    );
-    println!("Output bytes: {:?}", &state_out_bytes);
 
-    // From sha256 example
-    let res = synthesize(
-        &mut cs.namespace(|| "circom_keccak256"),
-        cfg.r1cs.clone(),
-        Some(witness),
-    );
-    let output = res.unwrap();
-    dbg!(output.len());
-    let state_out_fq = &output[0..0 + (32 * 8)];
-    println!(
-        "Bits out: {:?}",
-        state_out_fq
-            .iter()
-            .map(|n| {
-                let value = n.get_value().unwrap();
-                if value == Fq::one() {
-                    1
-                } else {
-                    0
-                }
-            })
-            .collect::<Vec<u8>>()
-    );
+    assert_eq!(state_out_bytes, expected_output);
 }
 
-fn fq_to_bits(fq_slice: &[Fq]) -> Vec<bool> {
-    let mut bits = Vec::new();
-    for &fq in fq_slice {
-        if fq == Fq::one() {
-            bits.push(true)
-        } else {
-            bits.push(false)
-        }
-    }
-    bits
-}
-
-// Rust bit to byte implementation
-// // Fills the byte from most important (leftmost) to the least significant (rightmost) bit
+// Transforms a slice of bits in a slice of bytes. Fills the bytes from least to most significant
+// bit.
 fn bits_to_bytes(bits: &[bool]) -> Vec<u8> {
-    let mut bytes = Vec::new(); // Create a new, empty vector to store bytes
-
-    for chunk in bits.chunks(8) {
-        // Iterate over the bits in chunks of 8
-        let mut byte = 0u8; // Initialize a new byte to 0
-        for (i, &bit) in chunk.iter().enumerate() {
-            // Iterate over each bit in the chunk
-            if bit {
-                // If the current bit is true,
-                byte |= 1 << (7 - i); // Set the corresponding bit in the byte
-            }
-        }
-        bytes.push(byte); // Add the composed byte to the vector
-    }
-    bytes // Return the vector of bytes
-}
-
-// Implemented as https://github.com/vocdoni/keccak256-circom/blob/master/test/utils.js#L76-L89
-// Fills the byte from least to most significant bit
-fn js_bits_to_bytes(bits: &[bool]) -> Vec<u8> {
     let mut bytes = vec![0; (bits.len() + 7) / 8]; // Initialize a vector with zeroes
 
     for (i, &bit) in bits.iter().enumerate() {
@@ -140,4 +57,24 @@ fn js_bits_to_bytes(bits: &[bool]) -> Vec<u8> {
         }
     }
     bytes // Return the array of bytes
+}
+
+// Transforms a slice of bytes to a slice of bits. When dividing one byte in bits, order the bits
+// from the least significant to the most significant one.
+fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
+    let mut bits = Vec::new(); // Create a new, empty vector to store bits
+
+    for &byte in bytes.iter() {
+        // Iterate over each byte in the input slice
+        for j in 0..8 {
+            // For each bit in the byte
+            if byte & (1 << j) > 0 {
+                // Check if the bit is set
+                bits.push(true); // If the bit is set, push 1 to the vector
+            } else {
+                bits.push(false); // If the bit is not set, push 0
+            }
+        }
+    }
+    bits // Return the vector of bits
 }

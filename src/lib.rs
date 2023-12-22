@@ -72,12 +72,6 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
     r1cs: R1CS<F>,
     witness: Option<Vec<F>>,
 ) -> Result<Vec<AllocatedNum<F>>, SynthesisError> {
-    //println!("witness: {:?}", witness);
-    //println!("num_inputs: {:?}", r1cs.num_inputs);
-    //println!("num_aux: {:?}", r1cs.num_aux);
-    //println!("num_variables: {:?}", r1cs.num_variables);
-    //println!("num constraints: {:?}", r1cs.constraints.len());
-
     let witness = &witness;
 
     let mut vars: Vec<AllocatedNum<F>> = vec![];
