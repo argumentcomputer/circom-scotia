@@ -13,13 +13,7 @@ jobs:
         uses: Swatinem/rust-cache@v1
 
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          profile: minimal
-          components: rustfmt, clippy
-          target: wasm32-unknown-unknown
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
