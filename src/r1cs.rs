@@ -25,6 +25,7 @@ pub(crate) struct CircomCircuit<F: PrimeField> {
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct R1CS<F: PrimeField> {
+    pub num_pub_in: usize,
     pub num_pub_out: usize,
     pub num_inputs: usize,
     pub num_aux: usize,

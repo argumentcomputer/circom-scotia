@@ -335,12 +335,14 @@ fn from_reader<Fr: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile
 /// load r1cs from bin by a reader
 fn load_r1cs_from_bin<Fr: PrimeField, R: Read + Seek>(reader: R) -> R1CS<Fr> {
     let file = from_reader(reader).expect("unable to read.");
+    let num_pub_in = file.header.n_pub_in as usize;
     let num_pub_out = file.header.n_pub_out as usize;
     let num_inputs = (1 + file.header.n_pub_in + file.header.n_pub_out) as usize;
     let num_variables = file.header.n_wires as usize;
     let num_aux = num_variables - num_inputs;
     R1CS {
         num_aux,
+        num_pub_in,
         num_pub_out,
         num_inputs,
         num_variables,
@@ -370,6 +372,7 @@ fn load_r1cs_from_json_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> R1CS<
 fn load_r1cs_from_json<Fr: PrimeField, R: Read>(reader: R) -> R1CS<Fr> {
     let circuit_json: CircuitJson = serde_json::from_reader(reader).expect("unable to read.");
 
+    let num_pub_in = circuit_json.num_inputs;
     let num_pub_out = circuit_json.num_outputs;
     let num_inputs = circuit_json.num_inputs + circuit_json.num_outputs + 1;
     let num_aux = circuit_json.num_variables - num_inputs;
@@ -393,6 +396,7 @@ fn load_r1cs_from_json<Fr: PrimeField, R: Read>(reader: R) -> R1CS<Fr> {
         .collect_vec();
 
     R1CS {
+        num_pub_in,
         num_pub_out,
         num_inputs,
         num_aux,
