@@ -8,8 +8,9 @@
 //   - Adapted the original work here: https://github.com/nalinbhardwaj/Nova-Scotia/blob/main/src/circom
 //   - Retrofitted to support `wasmer` witness generation.
 
-use std::{io, path::Path, sync::Mutex};
+use std::{path::Path, sync::Mutex};
 
+use anyhow::{anyhow, Result};
 use ff::PrimeField;
 use serde::{Deserialize, Serialize};
 
@@ -51,9 +52,9 @@ pub struct CircomConfig<F: PrimeField> {
 }
 
 impl<F: PrimeField> CircomConfig<F> {
-    pub fn new(wtns: impl AsRef<Path>, r1cs: impl AsRef<Path>) -> io::Result<Self> {
+    pub fn new(wtns: impl AsRef<Path>, r1cs: impl AsRef<Path>) -> Result<Self> {
         let wtns = Mutex::new(WitnessCalculator::new(wtns).unwrap());
-        let r1cs = load_r1cs(r1cs);
+        let r1cs = load_r1cs(r1cs).map_err(|err| anyhow!(err))?;
         Ok(Self {
             wtns,
             r1cs,

@@ -16,13 +16,14 @@ use std::{
 };
 
 use crate::r1cs::CircomInput;
+use anyhow::{anyhow, Result};
 use bellpepper_core::{num::AllocatedNum, ConstraintSystem, LinearCombination, SynthesisError};
-use color_eyre::Result;
 use ff::PrimeField;
 use r1cs::{CircomConfig, R1CS};
 
 use crate::reader::load_witness_from_file;
 
+mod error;
 pub mod r1cs;
 pub mod reader;
 pub mod witness;
@@ -31,7 +32,7 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
     witness_dir: PathBuf,
     witness_input_json: String,
     witness_output: impl AsRef<Path>,
-) -> Vec<F> {
+) -> Result<Vec<F>> {
     let root = current_dir().unwrap();
     let witness_generator_input = root.join("circom_input.json");
     fs::write(&witness_generator_input, witness_input_json).unwrap();
@@ -53,7 +54,7 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
         print!("stderr: {}", std::str::from_utf8(&output.stderr).unwrap());
     }
     let _ = fs::remove_file(witness_generator_input);
-    load_witness_from_file(witness_output)
+    load_witness_from_file(witness_output).map_err(|err| anyhow!(err))
 }
 
 /// TODO docs
@@ -64,7 +65,9 @@ pub fn calculate_witness<F: PrimeField>(
 ) -> Result<Vec<F>> {
     let mut lock = cfg.wtns.lock().unwrap();
     let witness_calculator = &mut *lock;
-    witness_calculator.calculate_witness(input, sanity_check)
+    witness_calculator
+        .calculate_witness(input, sanity_check)
+        .map_err(|err| anyhow!(err))
 }
 
 /// Parse the witness that we calculated from the circuit to update our constraint system based on it

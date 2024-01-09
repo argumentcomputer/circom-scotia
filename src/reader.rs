@@ -13,7 +13,7 @@
 //! files, either in binary or JSON format. It supports handling witness data and circuit
 //! constraints.
 
-use anyhow::bail;
+use anyhow::Result;
 use crypto_bigint::U256;
 use ff::PrimeField;
 use serde::{Deserialize, Serialize};
@@ -25,6 +25,12 @@ use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 
+use crate::error::ReaderError;
+use crate::error::ReaderError::{
+    FieldByteSizeError, FilenameError, OpenFileError, ReadFieldError, ReadIntegerError,
+    ReadWitnessError, SectionCountError, SectionLengthError, SectionTypeError, VersionNotSupported,
+    WitnessHeaderError,
+};
 use byteorder::{LittleEndian, ReadBytesExt};
 use itertools::Itertools;
 
@@ -73,11 +79,13 @@ pub struct R1CSFile<F: PrimeField> {
 ///
 /// The function supports both `.bin` and `.json` file extensions and loads the witness data
 /// accordingly.
-pub(crate) fn load_witness_from_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec<Fr> {
+pub(crate) fn load_witness_from_file<F: PrimeField>(
+    filename: impl AsRef<Path>,
+) -> Result<Vec<F>, ReaderError> {
     if filename.as_ref().ends_with("json") {
-        load_witness_from_json_file::<Fr>(filename)
+        load_witness_from_json_file::<F>(filename)
     } else {
-        load_witness_from_bin_file::<Fr>(filename)
+        load_witness_from_bin_file::<F>(filename)
     }
 }
 
@@ -85,13 +93,23 @@ pub(crate) fn load_witness_from_file<Fr: PrimeField>(filename: impl AsRef<Path>)
 ///
 /// This function reads the witness data from a binary file specified by the `filename`.
 /// It leverages a [`BufReader`] for efficient reading and returns a vector of field elements.
-fn load_witness_from_bin_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec<Fr> {
+fn load_witness_from_bin_file<F: PrimeField>(
+    filename: impl AsRef<Path>,
+) -> Result<Vec<F>, ReaderError> {
+    let path_string = filename.as_ref().to_str().ok_or(FilenameError)?.to_string();
     let reader = OpenOptions::new()
         .read(true)
-        .open(filename)
-        .expect("unable to open.");
-    load_witness_from_bin_reader::<Fr, BufReader<File>>(BufReader::new(reader))
-        .expect("read witness failed")
+        .open(&filename)
+        .map_err(|err| OpenFileError {
+            filename: path_string.clone(),
+            err: err.to_string(),
+        })?;
+    load_witness_from_bin_reader::<F, BufReader<File>>(BufReader::new(reader)).map_err(|err| {
+        ReadWitnessError {
+            filename: path_string,
+            err: err.to_string(),
+        }
+    })
 }
 
 /// Loads witness data from a binary reader.
@@ -99,51 +117,80 @@ fn load_witness_from_bin_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec
 /// This function reads the witness data from a binary reader and returns a vector of
 /// field elements. It handles the binary format of the witness data, ensuring correct
 /// parsing and conversion into field elements.
-fn load_witness_from_bin_reader<Fr: PrimeField, R: Read>(
+fn load_witness_from_bin_reader<F: PrimeField, R: Read>(
     mut reader: R,
-) -> Result<Vec<Fr>, anyhow::Error> {
+) -> Result<Vec<F>, ReaderError> {
     let mut wtns_header = [0u8; 4];
-    reader.read_exact(&mut wtns_header)?;
+    reader
+        .read_exact(&mut wtns_header)
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
     if wtns_header != [119, 116, 110, 115] {
-        bail!("invalid file header");
+        return Err(WitnessHeaderError);
     }
-    let version = reader.read_u32::<LittleEndian>()?;
+    let version = reader
+        .read_u32::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
 
     if version > 2 {
-        bail!("unsupported file version");
+        return Err(VersionNotSupported(version.to_string()));
     }
-    let num_sections = reader.read_u32::<LittleEndian>()?;
+    let num_sections = reader
+        .read_u32::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
     if num_sections != 2 {
-        bail!("invalid num sections");
+        return Err(SectionCountError(num_sections.to_string()));
     }
     // Read the first section.
-    let sec_type = reader.read_u32::<LittleEndian>()?;
+    let sec_type = reader
+        .read_u32::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
     if sec_type != 1 {
-        bail!("invalid section type");
+        return Err(SectionTypeError(1.to_string(), sec_type.to_string()));
     }
-    let sec_size = reader.read_u64::<LittleEndian>()?;
+    let sec_size = reader
+        .read_u64::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
     if sec_size != 4 + 32 + 4 {
-        bail!("invalid section len")
+        return Err(SectionLengthError(
+            (4 + 32 + 4).to_string(),
+            sec_size.to_string(),
+        ));
     }
-    let field_size = reader.read_u32::<LittleEndian>()?;
+    let field_size = reader
+        .read_u32::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
     if field_size != 32 {
-        bail!("invalid field byte size");
+        return Err(FieldByteSizeError(32.to_string(), field_size.to_string()));
     }
     let mut prime = vec![0u8; field_size as usize];
-    reader.read_exact(&mut prime)?;
+    reader
+        .read_exact(&mut prime)
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
 
-    let witness_len = reader.read_u32::<LittleEndian>()?;
-    let sec_type = reader.read_u32::<LittleEndian>()?;
+    // Read the second section.
+    let witness_len = reader
+        .read_u32::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
+    let sec_type = reader
+        .read_u32::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
     if sec_type != 2 {
-        bail!("invalid section type");
+        return Err(SectionTypeError(2.to_string(), sec_type.to_string()));
     }
-    let sec_size = reader.read_u64::<LittleEndian>()?;
+    let sec_size = reader
+        .read_u64::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
     if sec_size != u64::from(witness_len * field_size) {
-        bail!("invalid witness section size {}", sec_size);
+        return Err(SectionLengthError(
+            (witness_len * field_size).to_string(),
+            sec_size.to_string(),
+        ));
     }
     let mut result = Vec::with_capacity(witness_len as usize);
     for _ in 0..witness_len {
-        result.push(read_field::<&mut R, Fr>(&mut reader)?);
+        result.push(
+            read_field::<&mut R, F>(&mut reader).map_err(|err| ReadFieldError(err.to_string()))?,
+        );
     }
     Ok(result)
 }
@@ -152,24 +199,35 @@ fn load_witness_from_bin_reader<Fr: PrimeField, R: Read>(
 ///
 /// Reads witness data from a JSON formatted file. This function is particularly useful
 /// for handling human-readable witness data, converting it into a vector of field elements.
-fn load_witness_from_json_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec<Fr> {
+fn load_witness_from_json_file<F: PrimeField>(
+    filename: impl AsRef<Path>,
+) -> Result<Vec<F>, ReaderError> {
+    let path_string = filename.as_ref().to_str().ok_or(FilenameError)?.to_string();
     let reader = OpenOptions::new()
         .read(true)
-        .open(filename)
-        .expect("unable to open.");
-    load_witness_from_json::<Fr, BufReader<File>>(BufReader::new(reader))
+        .open(&filename)
+        .map_err(|err| OpenFileError {
+            filename: path_string.clone(),
+            err: err.to_string(),
+        })?;
+    load_witness_from_json::<F, BufReader<File>>(BufReader::new(reader)).map_err(|err| {
+        ReadWitnessError {
+            filename: path_string,
+            err: err.to_string(),
+        }
+    })
 }
 
 /// Loads witness data from a JSON reader.
 ///
 /// Parses witness data from a JSON reader and returns a vector of field elements.
 /// Useful for cases where witness data is stored in JSON format.
-fn load_witness_from_json<Fr: PrimeField, R: Read>(reader: R) -> Vec<Fr> {
-    let witness: Vec<String> = serde_json::from_reader(reader).expect("unable to read.");
-    witness
+fn load_witness_from_json<F: PrimeField, R: Read>(reader: R) -> Result<Vec<F>> {
+    let witness: Vec<String> = serde_json::from_reader(reader)?;
+    Ok(witness
         .into_iter()
-        .map(|x| Fr::from_str_vartime(&x).unwrap())
-        .collect::<Vec<Fr>>()
+        .map(|x| F::from_str_vartime(&x).unwrap())
+        .collect::<Vec<F>>())
 }
 
 /// Loads an R1CS (Rank-1 Constraint System) from a binary file.
@@ -177,25 +235,34 @@ fn load_witness_from_json<Fr: PrimeField, R: Read>(reader: R) -> Vec<Fr> {
 /// Reads an R1CS file in binary format, returning an `R1CS` structure that represents
 /// the constraint system. This is key for zk-SNARK applications where the R1CS format
 /// is used for defining constraints.
-fn load_r1cs_from_bin_file<F: PrimeField>(filename: impl AsRef<Path>) -> R1CS<F> {
+fn load_r1cs_from_bin_file<F: PrimeField>(
+    filename: impl AsRef<Path>,
+) -> Result<R1CS<F>, ReaderError> {
+    let path_string = filename.as_ref().to_str().ok_or(FilenameError)?.to_string();
     let reader = OpenOptions::new()
         .read(true)
         .open(filename.as_ref())
-        .unwrap_or_else(|_| panic!("unable to open {:?}", filename.as_ref()));
-    load_r1cs_from_bin(BufReader::new(reader))
+        .map_err(|err| OpenFileError {
+            filename: path_string.clone(),
+            err: err.to_string(),
+        })?;
+    load_r1cs_from_bin(BufReader::new(reader)).map_err(|err| ReadWitnessError {
+        filename: path_string,
+        err: err.to_string(),
+    })
 }
 
 /// Attempts to extract a field element from a byte reader.
 ///
 /// Given a byte reader, this function attempts to read and convert the bytes into
 /// a field element, returning an error if the process fails.
-fn read_field<R: Read, Fr: PrimeField>(mut reader: R) -> Result<Fr, Error> {
-    let mut repr = Fr::ZERO.to_repr();
+fn read_field<R: Read, F: PrimeField>(mut reader: R) -> Result<F, Error> {
+    let mut repr = F::ZERO.to_repr();
     for digit in repr.as_mut().iter_mut() {
         // TODO: may need to reverse order?
         *digit = reader.read_u8()?;
     }
-    let fr = Fr::from_repr(repr).unwrap();
+    let fr = F::from_repr(repr).unwrap();
     Ok(fr)
 }
 
@@ -381,29 +448,29 @@ fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<
 ///
 /// Reads and constructs an [`R1CS`] structure from a binary reader, which represents
 /// the Rank-1 Constraint System.
-fn load_r1cs_from_bin<F: PrimeField, R: Read + Seek>(reader: R) -> R1CS<F> {
-    let file = from_reader(reader).expect("unable to read.");
+fn load_r1cs_from_bin<F: PrimeField, R: Read + Seek>(reader: R) -> Result<R1CS<F>> {
+    let file = from_reader(reader)?;
     let num_pub_in = file.header.n_pub_in as usize;
     let num_pub_out = file.header.n_pub_out as usize;
     let num_inputs = (1 + file.header.n_pub_in + file.header.n_pub_out) as usize;
     let num_variables = file.header.n_wires as usize;
     let num_aux = num_variables - num_inputs;
 
-    R1CS {
+    Ok(R1CS {
         num_aux,
         num_pub_in,
         num_pub_out,
         num_inputs,
         num_variables,
         constraints: file.constraints,
-    }
+    })
 }
 
 /// Loads [`R1CS`] data from a file, automatically detecting the format (binary or JSON).
 ///
 /// This function provides a convenient way to load [`R1CS`] data, supporting both binary
 /// and JSON file formats.
-pub fn load_r1cs<F: PrimeField>(filename: impl AsRef<Path>) -> R1CS<F> {
+pub fn load_r1cs<F: PrimeField>(filename: impl AsRef<Path>) -> Result<R1CS<F>, ReaderError> {
     if filename.as_ref().ends_with("json") {
         load_r1cs_from_json_file(filename)
     } else {
@@ -415,20 +482,29 @@ pub fn load_r1cs<F: PrimeField>(filename: impl AsRef<Path>) -> R1CS<F> {
 ///
 /// This function reads and parses R1CS data from a JSON formatted file, converting it
 /// into an [`R1CS`] structure.
-fn load_r1cs_from_json_file<F: PrimeField>(filename: impl AsRef<Path>) -> R1CS<F> {
+fn load_r1cs_from_json_file<F: PrimeField>(
+    filename: impl AsRef<Path>,
+) -> Result<R1CS<F>, ReaderError> {
+    let path_string = filename.as_ref().to_str().ok_or(FilenameError)?.to_string();
     let reader = OpenOptions::new()
         .read(true)
-        .open(filename)
-        .expect("unable to open.");
-    load_r1cs_from_json(BufReader::new(reader))
+        .open(&filename)
+        .map_err(|err| OpenFileError {
+            filename: path_string.clone(),
+            err: err.to_string(),
+        })?;
+    load_r1cs_from_json(BufReader::new(reader)).map_err(|err| ReadWitnessError {
+        filename: path_string,
+        err: err.to_string(),
+    })
 }
 
 /// Loads R1CS data from a JSON reader.
 ///
 /// Parses R1CS data from a JSON reader, creating an [`R1CS`] structure that represents
 /// the constraint system in a human-readable format.
-fn load_r1cs_from_json<F: PrimeField, R: Read>(reader: R) -> R1CS<F> {
-    let circuit_json: CircuitJson = serde_json::from_reader(reader).expect("unable to read.");
+fn load_r1cs_from_json<F: PrimeField, R: Read>(reader: R) -> Result<R1CS<F>> {
+    let circuit_json: CircuitJson = serde_json::from_reader(reader)?;
 
     let num_pub_in = circuit_json.num_inputs;
     let num_pub_out = circuit_json.num_outputs;
@@ -453,12 +529,12 @@ fn load_r1cs_from_json<F: PrimeField, R: Read>(reader: R) -> R1CS<F> {
         })
         .collect_vec();
 
-    R1CS {
+    Ok(R1CS {
         num_pub_in,
         num_pub_out,
         num_inputs,
         num_aux,
         num_variables: circuit_json.num_variables,
         constraints,
-    }
+    })
 }
