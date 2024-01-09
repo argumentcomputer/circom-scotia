@@ -252,7 +252,7 @@ impl WitnessCalculator {
 
             let sig_offset = self.memory.read_u32(&self.store, p_sig_offset as usize) as usize;
 
-            for (i, _value) in &input.value.into_iter().enumerate() {
+            for (i, _value) in input.value.into_iter().enumerate() {
                 self.memory
                     .write_fr(&self.store, p_fr as usize, U256::ZERO)?; // TODO: FIXME
                 self.instance

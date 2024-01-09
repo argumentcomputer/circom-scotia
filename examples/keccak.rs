@@ -43,13 +43,7 @@ fn main() {
     let state_out_fq = output.unwrap();
     let state_out_bits: Vec<bool> = state_out_fq
         .iter()
-        .map(|an| {
-            if Fq::one() == an.get_value().unwrap() {
-                true
-            } else {
-                false
-            }
-        })
+        .map(|an| Fq::one() == an.get_value().unwrap())
         .collect();
     let state_out_bytes = bits_to_bytes(&state_out_bits);
 

@@ -108,10 +108,7 @@ pub fn synthesize<F: PrimeField, CS: ConstraintSystem<F>>(
     let output = match r1cs.num_pub_out {
         0 => vec![],
         1 => vec![vars[0].clone()],
-        _ => vars[0..r1cs.num_pub_out - 1usize]
-            .iter()
-            .map(|an| an.clone())
-            .collect::<Vec<AllocatedNum<F>>>(),
+        _ => vars[0..r1cs.num_pub_out - 1usize].to_vec(),
     };
 
     // Create closure responsible to create the linear combination data.

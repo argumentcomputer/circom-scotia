@@ -29,7 +29,7 @@ fn main() {
         cfg.r1cs.clone(),
         Some(witness),
     );
-    dbg!(&output);
+
     let expected = "0x00000000008619b3767c057fdf8e6d99fde2680c5d8517eb06761c0878d40c40";
     let output_num = format!("{:?}", output.unwrap()[0].get_value().unwrap());
     assert!(output_num == expected);

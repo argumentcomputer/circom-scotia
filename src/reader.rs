@@ -7,6 +7,12 @@
 // - Hanting Zhang (winston@lurk-lab.com)
 //   - Adapted the original work here: https://github.com/nalinbhardwaj/Nova-Scotia/blob/main/src/circom/reader.rs
 
+//! # R1CS File Loader
+//!
+//! This module provides functionality for loading and parsing R1CS (Rank-1 Constraint Systems)
+//! files, either in binary or JSON format. It supports handling witness data and circuit
+//! constraints.
+
 use anyhow::bail;
 use crypto_bigint::U256;
 use ff::PrimeField;
@@ -25,7 +31,10 @@ use itertools::Itertools;
 use crate::r1cs::Constraint;
 use crate::r1cs::R1CS;
 
-/// Used to represent r1cs data extracted from a JSON.
+/// Represents R1CS (Rank-1 Constraint System) data extracted from a JSON file.
+///
+/// This struct includes the constraints as vectors of [`BTreeMap`], along with the number of
+/// inputs, outputs, and variables in the circuit.
 #[derive(Serialize, Deserialize)]
 pub(crate) struct CircuitJson {
     constraints: Vec<Vec<BTreeMap<String, String>>>,
@@ -37,7 +46,7 @@ pub(crate) struct CircuitJson {
     num_variables: usize,
 }
 
-/// [`R1CSFile`]'s header.
+/// Header of an [`R1CSFile`], containing metadata about the constraint system.
 #[allow(dead_code)]
 #[derive(Debug, Default)]
 struct Header {
@@ -50,7 +59,7 @@ struct Header {
     n_constraints: u32,
 }
 
-// Structure representing an R1CS file parse result.
+/// Represents an R1CS (Rank-1 Constraint System) file, including version, header, constraints, and wire mapping.
 #[allow(dead_code)]
 #[derive(Debug, Default)]
 pub struct R1CSFile<F: PrimeField> {
@@ -60,7 +69,10 @@ pub struct R1CSFile<F: PrimeField> {
     wire_mapping: Vec<u64>,
 }
 
-/// Loads witness file by filename with autodetect encoding (bin or json).
+/// Loads witness data from a file, detecting whether it's in binary or JSON format.
+///
+/// The function supports both `.bin` and `.json` file extensions and loads the witness data
+/// accordingly.
 pub(crate) fn load_witness_from_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec<Fr> {
     if filename.as_ref().ends_with("json") {
         load_witness_from_json_file::<Fr>(filename)
@@ -69,7 +81,10 @@ pub(crate) fn load_witness_from_file<Fr: PrimeField>(filename: impl AsRef<Path>)
     }
 }
 
-/// Loads witness from bin file by filename.
+/// Loads witness data from a binary file.
+///
+/// This function reads the witness data from a binary file specified by the `filename`.
+/// It leverages a [`BufReader`] for efficient reading and returns a vector of field elements.
 fn load_witness_from_bin_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec<Fr> {
     let reader = OpenOptions::new()
         .read(true)
@@ -79,7 +94,11 @@ fn load_witness_from_bin_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec
         .expect("read witness failed")
 }
 
-/// Loads witness from u8 array by a reader.
+/// Loads witness data from a binary reader.
+///
+/// This function reads the witness data from a binary reader and returns a vector of
+/// field elements. It handles the binary format of the witness data, ensuring correct
+/// parsing and conversion into field elements.
 fn load_witness_from_bin_reader<Fr: PrimeField, R: Read>(
     mut reader: R,
 ) -> Result<Vec<Fr>, anyhow::Error> {
@@ -129,7 +148,10 @@ fn load_witness_from_bin_reader<Fr: PrimeField, R: Read>(
     Ok(result)
 }
 
-/// Loads witness from json file by filename.
+/// Loads witness data from a JSON file.
+///
+/// Reads witness data from a JSON formatted file. This function is particularly useful
+/// for handling human-readable witness data, converting it into a vector of field elements.
 fn load_witness_from_json_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec<Fr> {
     let reader = OpenOptions::new()
         .read(true)
@@ -138,7 +160,10 @@ fn load_witness_from_json_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Ve
     load_witness_from_json::<Fr, BufReader<File>>(BufReader::new(reader))
 }
 
-/// Loads witness from json by a reader.
+/// Loads witness data from a JSON reader.
+///
+/// Parses witness data from a JSON reader and returns a vector of field elements.
+/// Useful for cases where witness data is stored in JSON format.
 fn load_witness_from_json<Fr: PrimeField, R: Read>(reader: R) -> Vec<Fr> {
     let witness: Vec<String> = serde_json::from_reader(reader).expect("unable to read.");
     witness
@@ -147,7 +172,11 @@ fn load_witness_from_json<Fr: PrimeField, R: Read>(reader: R) -> Vec<Fr> {
         .collect::<Vec<Fr>>()
 }
 
-/// Loads r1cs from bin file by filename.
+/// Loads an R1CS (Rank-1 Constraint System) from a binary file.
+///
+/// Reads an R1CS file in binary format, returning an `R1CS` structure that represents
+/// the constraint system. This is key for zk-SNARK applications where the R1CS format
+/// is used for defining constraints.
 fn load_r1cs_from_bin_file<F: PrimeField>(filename: impl AsRef<Path>) -> R1CS<F> {
     let reader = OpenOptions::new()
         .read(true)
@@ -156,7 +185,10 @@ fn load_r1cs_from_bin_file<F: PrimeField>(filename: impl AsRef<Path>) -> R1CS<F>
     load_r1cs_from_bin(BufReader::new(reader))
 }
 
-/// Tries to extract a field element from bytes read from a source.
+/// Attempts to extract a field element from a byte reader.
+///
+/// Given a byte reader, this function attempts to read and convert the bytes into
+/// a field element, returning an error if the process fails.
 fn read_field<R: Read, Fr: PrimeField>(mut reader: R) -> Result<Fr, Error> {
     let mut repr = Fr::ZERO.to_repr();
     for digit in repr.as_mut().iter_mut() {
@@ -167,7 +199,10 @@ fn read_field<R: Read, Fr: PrimeField>(mut reader: R) -> Result<Fr, Error> {
     Ok(fr)
 }
 
-/// Tries to extract a r1cs [`Header`] from bytes read from a source.  
+/// Attempts to extract an R1CS [`Header`] from a byte reader.
+///
+/// Reads and parses the header of an R1CS file, returning a [`Header`] struct. This includes
+/// information such as field size, prime size, number of wires, public inputs, and constraints.
 fn read_header<R: Read>(mut reader: R, size: u64, expected_prime: &str) -> Result<Header, Error> {
     let field_size = reader.read_u32::<LittleEndian>()?;
 
@@ -202,38 +237,50 @@ fn read_header<R: Read>(mut reader: R, size: u64, expected_prime: &str) -> Resul
     })
 }
 
-fn read_constraint_vec<R: Read, Fr: PrimeField>(
+/// Reads and converts a vector of constraints from a byte reader.
+///
+/// This function parses a sequence of constraints from a byte reader, returning a vector
+/// of constraints for use in an [`R1CS`].
+fn read_constraint_vec<R: Read, F: PrimeField>(
     mut reader: R,
     _header: &Header,
-) -> Result<Vec<(usize, Fr)>, Error> {
+) -> Result<Vec<(usize, F)>, Error> {
     let n_vec = reader.read_u32::<LittleEndian>()? as usize;
     let mut vec = Vec::with_capacity(n_vec);
     for _ in 0..n_vec {
         vec.push((
             reader.read_u32::<LittleEndian>()? as usize,
-            read_field::<&mut R, Fr>(&mut reader)?,
+            read_field::<&mut R, F>(&mut reader)?,
         ));
     }
     Ok(vec)
 }
 
-fn read_constraints<R: Read, Fr: PrimeField>(
+/// Reads and constructs constraints for an R1CS from a byte reader.
+///
+/// Parses the constraints section of an R1CS file, constructing a vector of [`Constraint`]
+/// objects that represent the constraints in the R1CS.
+fn read_constraints<R: Read, F: PrimeField>(
     mut reader: R,
     _size: u64,
     header: &Header,
-) -> Result<Vec<Constraint<Fr>>, Error> {
+) -> Result<Vec<Constraint<F>>, Error> {
     // todo check section size
     let mut vec = Vec::with_capacity(header.n_constraints as usize);
     for _ in 0..header.n_constraints {
         vec.push((
-            read_constraint_vec::<&mut R, Fr>(&mut reader, header)?,
-            read_constraint_vec::<&mut R, Fr>(&mut reader, header)?,
-            read_constraint_vec::<&mut R, Fr>(&mut reader, header)?,
+            read_constraint_vec::<&mut R, F>(&mut reader, header)?,
+            read_constraint_vec::<&mut R, F>(&mut reader, header)?,
+            read_constraint_vec::<&mut R, F>(&mut reader, header)?,
         ));
     }
     Ok(vec)
 }
 
+/// Reads and creates a mapping from wires to labels from a byte reader.
+///
+/// This function is responsible for parsing the wire-to-label mapping in an [`R1CS`] file,
+/// critical for correctly interpreting the constraint system.
 fn read_map<R: Read>(mut reader: R, size: u64, header: &Header) -> Result<Vec<u64>, Error> {
     if size != u64::from(header.n_wires) * 8 {
         return Err(Error::new(
@@ -254,7 +301,11 @@ fn read_map<R: Read>(mut reader: R, size: u64, header: &Header) -> Result<Vec<u6
     Ok(vec)
 }
 
-fn from_reader<Fr: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<Fr>, Error> {
+/// Constructs an `R1CSFile` from a byte reader.
+///
+/// Given a byte reader, this function constructs an [`R1CSFile`] structure, which includes
+/// the version, header, constraints, and wire mapping of an [`R1CS`].
+fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<F>, Error> {
     let mut magic = [0u8; 4];
     reader.read_exact(&mut magic)?;
     if magic != [0x72, 0x31, 0x63, 0x73] {
@@ -291,7 +342,7 @@ fn from_reader<Fr: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile
     let header = read_header(
         &mut reader,
         *section_sizes.get(&header_type).unwrap(),
-        Fr::MODULUS,
+        F::MODULUS,
     )?;
     if header.field_size != 32 {
         return Err(Error::new(
@@ -299,14 +350,11 @@ fn from_reader<Fr: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile
             "This parser only supports 32-byte fields",
         ));
     }
-    // if header.prime_size != hex!("010000f093f5e1439170b97948e833285d588181b64550b829a031e1724e6430") {
-    //     return Err(Error::new(ErrorKind::InvalidData, "This parser only supports bn256"));
-    // }
 
     reader.seek(SeekFrom::Start(
         *section_offsets.get(&constraint_type).unwrap(),
     ))?;
-    let constraints = read_constraints::<&mut R, Fr>(
+    let constraints = read_constraints::<&mut R, F>(
         &mut reader,
         *section_sizes.get(&constraint_type).unwrap(),
         &header,
@@ -329,8 +377,11 @@ fn from_reader<Fr: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile
     })
 }
 
-/// Loads r1cs from bin by a reader
-fn load_r1cs_from_bin<Fr: PrimeField, R: Read + Seek>(reader: R) -> R1CS<Fr> {
+/// Loads R1CS data from a binary reader.
+///
+/// Reads and constructs an [`R1CS`] structure from a binary reader, which represents
+/// the Rank-1 Constraint System.
+fn load_r1cs_from_bin<F: PrimeField, R: Read + Seek>(reader: R) -> R1CS<F> {
     let file = from_reader(reader).expect("unable to read.");
     let num_pub_in = file.header.n_pub_in as usize;
     let num_pub_out = file.header.n_pub_out as usize;
@@ -348,8 +399,11 @@ fn load_r1cs_from_bin<Fr: PrimeField, R: Read + Seek>(reader: R) -> R1CS<Fr> {
     }
 }
 
-/// Loads r1cs file by filename with autodetect encoding (bin or json)
-pub fn load_r1cs<Fr: PrimeField>(filename: impl AsRef<Path>) -> R1CS<Fr> {
+/// Loads [`R1CS`] data from a file, automatically detecting the format (binary or JSON).
+///
+/// This function provides a convenient way to load [`R1CS`] data, supporting both binary
+/// and JSON file formats.
+pub fn load_r1cs<F: PrimeField>(filename: impl AsRef<Path>) -> R1CS<F> {
     if filename.as_ref().ends_with("json") {
         load_r1cs_from_json_file(filename)
     } else {
@@ -357,8 +411,11 @@ pub fn load_r1cs<Fr: PrimeField>(filename: impl AsRef<Path>) -> R1CS<Fr> {
     }
 }
 
-/// Loads r1cs from json file by filename
-fn load_r1cs_from_json_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> R1CS<Fr> {
+/// Loads R1CS data from a JSON file.
+///
+/// This function reads and parses R1CS data from a JSON formatted file, converting it
+/// into an [`R1CS`] structure.
+fn load_r1cs_from_json_file<F: PrimeField>(filename: impl AsRef<Path>) -> R1CS<F> {
     let reader = OpenOptions::new()
         .read(true)
         .open(filename)
@@ -366,8 +423,11 @@ fn load_r1cs_from_json_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> R1CS<
     load_r1cs_from_json(BufReader::new(reader))
 }
 
-/// Loads r1cs from json by a reader
-fn load_r1cs_from_json<Fr: PrimeField, R: Read>(reader: R) -> R1CS<Fr> {
+/// Loads R1CS data from a JSON reader.
+///
+/// Parses R1CS data from a JSON reader, creating an [`R1CS`] structure that represents
+/// the constraint system in a human-readable format.
+fn load_r1cs_from_json<F: PrimeField, R: Read>(reader: R) -> R1CS<F> {
     let circuit_json: CircuitJson = serde_json::from_reader(reader).expect("unable to read.");
 
     let num_pub_in = circuit_json.num_inputs;
@@ -377,7 +437,7 @@ fn load_r1cs_from_json<Fr: PrimeField, R: Read>(reader: R) -> R1CS<Fr> {
 
     let convert_constraint = |lc: &BTreeMap<String, String>| {
         lc.iter()
-            .map(|(index, coeff)| (index.parse().unwrap(), Fr::from_str_vartime(coeff).unwrap()))
+            .map(|(index, coeff)| (index.parse().unwrap(), F::from_str_vartime(coeff).unwrap()))
             .collect_vec()
     };
 
