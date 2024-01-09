@@ -16,6 +16,7 @@ use wasmer::{
     imports, AsStoreMut, Function, Instance, Memory, MemoryType, Module, RuntimeError, Store,
 };
 
+use crate::r1cs::CircomInput;
 #[cfg(feature = "llvm")]
 use wasmer_compiler_llvm::LLVM;
 
@@ -212,7 +213,7 @@ impl WitnessCalculator {
 
     pub fn calculate_witness<F: PrimeField>(
         &mut self,
-        input: Vec<(String, Vec<F>)>,
+        input: Vec<CircomInput<F>>,
         sanity_check: bool,
     ) -> Result<Vec<F>> {
         self.instance.init(&mut self.store, sanity_check)?;
@@ -233,7 +234,7 @@ impl WitnessCalculator {
     // Circom 1 default behavior
     fn calculate_witness_circom1<F: PrimeField>(
         &mut self,
-        input: Vec<(String, Vec<F>)>,
+        inputs: Vec<CircomInput<F>>,
         sanity_check: bool,
     ) -> Result<Vec<F>> {
         self.instance.init(&mut self.store, sanity_check)?;
@@ -243,15 +244,15 @@ impl WitnessCalculator {
         let p_fr = self.memory.alloc_fr(&self.store);
 
         // allocate the inputs
-        for (name, values) in input {
-            let (msb, lsb) = fnv(&name);
+        for input in inputs {
+            let (msb, lsb) = fnv(&input.name);
 
             self.instance
                 .get_signal_offset32(&mut self.store, p_sig_offset, 0, msb, lsb)?;
 
             let sig_offset = self.memory.read_u32(&self.store, p_sig_offset as usize) as usize;
 
-            for (i, _value) in values.into_iter().enumerate() {
+            for (i, _value) in &input.value.into_iter().enumerate() {
                 self.memory
                     .write_fr(&self.store, p_fr as usize, U256::ZERO)?; // TODO: FIXME
                 self.instance
@@ -277,7 +278,7 @@ impl WitnessCalculator {
     #[cfg(feature = "circom-2")]
     fn calculate_witness_circom2<F: PrimeField>(
         &mut self,
-        input: Vec<(String, Vec<F>)>,
+        inputs: Vec<CircomInput<F>>,
         sanity_check: bool,
     ) -> Result<Vec<F>> {
         self.instance.init(&mut self.store, sanity_check)?;
@@ -285,10 +286,10 @@ impl WitnessCalculator {
         let n32 = self.instance.get_field_num_len32(&mut self.store)?;
 
         // allocate the inputs
-        for (name, values) in input {
-            let (msb, lsb) = fnv(&name);
+        for input in inputs {
+            let (msb, lsb) = fnv(&input.name);
 
-            for (i, value) in values.into_iter().enumerate() {
+            for (i, value) in input.value.into_iter().enumerate() {
                 let f_arr = to_vec_u32(value);
                 for j in 0..n32 {
                     self.instance

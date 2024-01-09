@@ -33,9 +33,11 @@ pub struct R1CS<F: PrimeField> {
     pub constraints: Vec<Constraint<F>>,
 }
 
+/// Structure representing inputs for a Circom gadget.
 #[derive(Serialize, Deserialize)]
-pub(crate) struct CircomInput {
-    pub(crate) arg_in: Vec<String>,
+pub struct CircomInput<F: PrimeField> {
+    pub name: String,
+    pub value: Vec<F>,
 }
 
 pub(crate) type Constraint<F> = (Vec<(usize, F)>, Vec<(usize, F)>, Vec<(usize, F)>);

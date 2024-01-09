@@ -7,6 +7,7 @@ use std::env::current_dir;
 
 use bellpepper_core::test_cs::TestConstraintSystem;
 use bellpepper_core::Comparable;
+use circom_scotia::r1cs::CircomInput;
 
 fn main() {
     let root = current_dir().unwrap().join("examples/sha256");
@@ -16,7 +17,10 @@ fn main() {
     let mut cs = TestConstraintSystem::<Fr>::new();
     let cfg = CircomConfig::new(wtns, r1cs).unwrap();
 
-    let arg_in = ("arg_in".into(), vec![Fr::ZERO, Fr::ZERO]);
+    let arg_in = CircomInput {
+        name: "arg_in".into(),
+        value: vec![Fr::ZERO, Fr::ZERO],
+    };
     let input = vec![arg_in];
     let witness = calculate_witness(&cfg, input, true).expect("msg");
 

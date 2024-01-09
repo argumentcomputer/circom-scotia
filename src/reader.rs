@@ -25,6 +25,7 @@ use itertools::Itertools;
 use crate::r1cs::Constraint;
 use crate::r1cs::R1CS;
 
+/// Used to represent r1cs data extracted from a JSON.
 #[derive(Serialize, Deserialize)]
 pub(crate) struct CircuitJson {
     constraints: Vec<Vec<BTreeMap<String, String>>>,
@@ -36,7 +37,7 @@ pub(crate) struct CircuitJson {
     num_variables: usize,
 }
 
-// R1CSFile's header
+/// [`R1CSFile`]'s header.
 #[allow(dead_code)]
 #[derive(Debug, Default)]
 struct Header {
@@ -45,12 +46,11 @@ struct Header {
     n_wires: u32,
     n_pub_out: u32,
     n_pub_in: u32,
-    n_prv_in: u32,
     n_labels: u64,
     n_constraints: u32,
 }
 
-// R1CSFile parse result
+// Structure representing an R1CS file parse result.
 #[allow(dead_code)]
 #[derive(Debug, Default)]
 pub struct R1CSFile<F: PrimeField> {
@@ -60,7 +60,7 @@ pub struct R1CSFile<F: PrimeField> {
     wire_mapping: Vec<u64>,
 }
 
-/// load witness file by filename with autodetect encoding (bin or json).
+/// Loads witness file by filename with autodetect encoding (bin or json).
 pub(crate) fn load_witness_from_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec<Fr> {
     if filename.as_ref().ends_with("json") {
         load_witness_from_json_file::<Fr>(filename)
@@ -69,7 +69,7 @@ pub(crate) fn load_witness_from_file<Fr: PrimeField>(filename: impl AsRef<Path>)
     }
 }
 
-/// load witness from bin file by filename
+/// Loads witness from bin file by filename.
 fn load_witness_from_bin_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec<Fr> {
     let reader = OpenOptions::new()
         .read(true)
@@ -79,18 +79,17 @@ fn load_witness_from_bin_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec
         .expect("read witness failed")
 }
 
-/// load witness from u8 array by a reader
+/// Loads witness from u8 array by a reader.
 fn load_witness_from_bin_reader<Fr: PrimeField, R: Read>(
     mut reader: R,
 ) -> Result<Vec<Fr>, anyhow::Error> {
     let mut wtns_header = [0u8; 4];
     reader.read_exact(&mut wtns_header)?;
     if wtns_header != [119, 116, 110, 115] {
-        // ruby -e 'p "wtns".bytes' => [119, 116, 110, 115]
         bail!("invalid file header");
     }
     let version = reader.read_u32::<LittleEndian>()?;
-    // println!("wtns version {}", version);
+
     if version > 2 {
         bail!("unsupported file version");
     }
@@ -98,7 +97,7 @@ fn load_witness_from_bin_reader<Fr: PrimeField, R: Read>(
     if num_sections != 2 {
         bail!("invalid num sections");
     }
-    // read the first section
+    // Read the first section.
     let sec_type = reader.read_u32::<LittleEndian>()?;
     if sec_type != 1 {
         bail!("invalid section type");
@@ -113,11 +112,8 @@ fn load_witness_from_bin_reader<Fr: PrimeField, R: Read>(
     }
     let mut prime = vec![0u8; field_size as usize];
     reader.read_exact(&mut prime)?;
-    // if prime != hex!("010000f093f5e1439170b97948e833285d588181b64550b829a031e1724e6430") {
-    //     bail!("invalid curve prime {:?}", prime);
-    // }
+
     let witness_len = reader.read_u32::<LittleEndian>()?;
-    //println!("witness len {}", witness_len);
     let sec_type = reader.read_u32::<LittleEndian>()?;
     if sec_type != 2 {
         bail!("invalid section type");
@@ -133,7 +129,7 @@ fn load_witness_from_bin_reader<Fr: PrimeField, R: Read>(
     Ok(result)
 }
 
-/// load witness from json file by filename
+/// Loads witness from json file by filename.
 fn load_witness_from_json_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Vec<Fr> {
     let reader = OpenOptions::new()
         .read(true)
@@ -142,7 +138,7 @@ fn load_witness_from_json_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> Ve
     load_witness_from_json::<Fr, BufReader<File>>(BufReader::new(reader))
 }
 
-/// load witness from json by a reader
+/// Loads witness from json by a reader.
 fn load_witness_from_json<Fr: PrimeField, R: Read>(reader: R) -> Vec<Fr> {
     let witness: Vec<String> = serde_json::from_reader(reader).expect("unable to read.");
     witness
@@ -151,7 +147,7 @@ fn load_witness_from_json<Fr: PrimeField, R: Read>(reader: R) -> Vec<Fr> {
         .collect::<Vec<Fr>>()
 }
 
-/// load r1cs from bin file by filename
+/// Loads r1cs from bin file by filename.
 fn load_r1cs_from_bin_file<F: PrimeField>(filename: impl AsRef<Path>) -> R1CS<F> {
     let reader = OpenOptions::new()
         .read(true)
@@ -160,6 +156,7 @@ fn load_r1cs_from_bin_file<F: PrimeField>(filename: impl AsRef<Path>) -> R1CS<F>
     load_r1cs_from_bin(BufReader::new(reader))
 }
 
+/// Tries to extract a field element from bytes read from a source.
 fn read_field<R: Read, Fr: PrimeField>(mut reader: R) -> Result<Fr, Error> {
     let mut repr = Fr::ZERO.to_repr();
     for digit in repr.as_mut().iter_mut() {
@@ -170,6 +167,7 @@ fn read_field<R: Read, Fr: PrimeField>(mut reader: R) -> Result<Fr, Error> {
     Ok(fr)
 }
 
+/// Tries to extract a r1cs [`Header`] from bytes read from a source.  
 fn read_header<R: Read>(mut reader: R, size: u64, expected_prime: &str) -> Result<Header, Error> {
     let field_size = reader.read_u32::<LittleEndian>()?;
 
@@ -199,7 +197,6 @@ fn read_header<R: Read>(mut reader: R, size: u64, expected_prime: &str) -> Resul
         n_wires: reader.read_u32::<LittleEndian>()?,
         n_pub_out: reader.read_u32::<LittleEndian>()?,
         n_pub_in: reader.read_u32::<LittleEndian>()?,
-        n_prv_in: reader.read_u32::<LittleEndian>()?,
         n_labels: reader.read_u64::<LittleEndian>()?,
         n_constraints: reader.read_u32::<LittleEndian>()?,
     })
@@ -332,7 +329,7 @@ fn from_reader<Fr: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile
     })
 }
 
-/// load r1cs from bin by a reader
+/// Loads r1cs from bin by a reader
 fn load_r1cs_from_bin<Fr: PrimeField, R: Read + Seek>(reader: R) -> R1CS<Fr> {
     let file = from_reader(reader).expect("unable to read.");
     let num_pub_in = file.header.n_pub_in as usize;
@@ -340,6 +337,7 @@ fn load_r1cs_from_bin<Fr: PrimeField, R: Read + Seek>(reader: R) -> R1CS<Fr> {
     let num_inputs = (1 + file.header.n_pub_in + file.header.n_pub_out) as usize;
     let num_variables = file.header.n_wires as usize;
     let num_aux = num_variables - num_inputs;
+
     R1CS {
         num_aux,
         num_pub_in,
@@ -350,7 +348,7 @@ fn load_r1cs_from_bin<Fr: PrimeField, R: Read + Seek>(reader: R) -> R1CS<Fr> {
     }
 }
 
-/// load r1cs file by filename with autodetect encoding (bin or json)
+/// Loads r1cs file by filename with autodetect encoding (bin or json)
 pub fn load_r1cs<Fr: PrimeField>(filename: impl AsRef<Path>) -> R1CS<Fr> {
     if filename.as_ref().ends_with("json") {
         load_r1cs_from_json_file(filename)
@@ -359,7 +357,7 @@ pub fn load_r1cs<Fr: PrimeField>(filename: impl AsRef<Path>) -> R1CS<Fr> {
     }
 }
 
-/// load r1cs from json file by filename
+/// Loads r1cs from json file by filename
 fn load_r1cs_from_json_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> R1CS<Fr> {
     let reader = OpenOptions::new()
         .read(true)
@@ -368,7 +366,7 @@ fn load_r1cs_from_json_file<Fr: PrimeField>(filename: impl AsRef<Path>) -> R1CS<
     load_r1cs_from_json(BufReader::new(reader))
 }
 
-/// load r1cs from json by a reader
+/// Loads r1cs from json by a reader
 fn load_r1cs_from_json<Fr: PrimeField, R: Read>(reader: R) -> R1CS<Fr> {
     let circuit_json: CircuitJson = serde_json::from_reader(reader).expect("unable to read.");
 

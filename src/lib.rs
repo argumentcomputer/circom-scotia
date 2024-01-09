@@ -15,6 +15,7 @@ use std::{
     process::Command,
 };
 
+use crate::r1cs::CircomInput;
 use bellpepper_core::{num::AllocatedNum, ConstraintSystem, LinearCombination, SynthesisError};
 use color_eyre::Result;
 use ff::PrimeField;
@@ -58,7 +59,7 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
 /// TODO docs
 pub fn calculate_witness<F: PrimeField>(
     cfg: &CircomConfig<F>,
-    input: Vec<(String, Vec<F>)>,
+    input: Vec<CircomInput<F>>,
     sanity_check: bool,
 ) -> Result<Vec<F>> {
     let mut lock = cfg.wtns.lock().unwrap();

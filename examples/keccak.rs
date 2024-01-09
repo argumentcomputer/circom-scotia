@@ -5,6 +5,7 @@ use pasta_curves::vesta::Base as Fr;
 use std::env::current_dir;
 
 use bellpepper_core::test_cs::TestConstraintSystem;
+use circom_scotia::r1cs::CircomInput;
 use pasta_curves::Fq;
 
 fn main() {
@@ -26,10 +27,10 @@ fn main() {
 
     let input_bits = bytes_to_bits(&input_bytes);
 
-    let arg_in = (
-        "in".into(),
-        input_bits.clone().iter().map(|b| Fr::from(*b)).collect(),
-    );
+    let arg_in = CircomInput {
+        name: "in".into(),
+        value: input_bits.clone().iter().map(|b| Fr::from(*b)).collect(),
+    };
     let input = vec![arg_in];
     let witness = calculate_witness(&cfg, input, true).expect("msg");
 
