@@ -12,8 +12,16 @@ pub enum ReaderError {
     FilenameError,
     #[error("'witns' header not found.")]
     WitnessHeaderError,
+    #[error("'r1cs' header not found.")]
+    R1CSHeaderError,
+    #[error("Error while seeking in buffer, got: {0}")]
+    SeekError(String),
     #[error("Witness version not supported. Version supported are 1 or 2, found {0}")]
-    VersionNotSupported(String),
+    WitnessVersionNotSupported(String),
+    #[error("R1CS version not supported. Version supported is 1, found {0}")]
+    R1CSVersionNotSupported(String),
+    #[error("Failed to find section {0}")]
+    SectionNotFound(String),
     #[error("Invalid number of sections found in witness data. Expected 2 got {0}")]
     SectionCountError(String),
     #[error("Invalid section type. Expected {0}, got {1}")]
@@ -24,6 +32,12 @@ pub enum ReaderError {
     FieldByteSizeError(String, String),
     #[error("Failed to read integer from bytes, got: {0}")]
     ReadIntegerError(String),
+    #[error("Failed to read bytes, got: {0}")]
+    ReadBytesError(String),
     #[error("Failed to read field from bytes, got: {0}")]
     ReadFieldError(String),
+    #[error("Mismatched prime field. Expected {expected}, read {value} in the header instead.")]
+    NonMatchingPrime { expected: String, value: String },
+    #[error("Wire 0 should always be mapped to 0")]
+    WireError,
 }

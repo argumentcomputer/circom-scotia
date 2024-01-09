@@ -13,7 +13,7 @@
 //! files, either in binary or JSON format. It supports handling witness data and circuit
 //! constraints.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use crypto_bigint::U256;
 use ff::PrimeField;
 use serde::{Deserialize, Serialize};
@@ -21,15 +21,16 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io::Error;
 use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::io::{Error, ErrorKind};
 use std::path::Path;
 
 use crate::error::ReaderError;
 use crate::error::ReaderError::{
-    FieldByteSizeError, FilenameError, OpenFileError, ReadFieldError, ReadIntegerError,
-    ReadWitnessError, SectionCountError, SectionLengthError, SectionTypeError, VersionNotSupported,
-    WitnessHeaderError,
+    FieldByteSizeError, FilenameError, NonMatchingPrime, OpenFileError, R1CSHeaderError,
+    R1CSVersionNotSupported, ReadBytesError, ReadFieldError, ReadIntegerError, ReadWitnessError,
+    SectionCountError, SectionLengthError, SectionNotFound, SectionTypeError, SeekError, WireError,
+    WitnessHeaderError, WitnessVersionNotSupported,
 };
 use byteorder::{LittleEndian, ReadBytesExt};
 use itertools::Itertools;
@@ -123,7 +124,7 @@ fn load_witness_from_bin_reader<F: PrimeField, R: Read>(
     let mut wtns_header = [0u8; 4];
     reader
         .read_exact(&mut wtns_header)
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadBytesError(err.to_string()))?;
     if wtns_header != [119, 116, 110, 115] {
         return Err(WitnessHeaderError);
     }
@@ -132,7 +133,7 @@ fn load_witness_from_bin_reader<F: PrimeField, R: Read>(
         .map_err(|err| ReadIntegerError(err.to_string()))?;
 
     if version > 2 {
-        return Err(VersionNotSupported(version.to_string()));
+        return Err(WitnessVersionNotSupported(version.to_string()));
     }
     let num_sections = reader
         .read_u32::<LittleEndian>()
@@ -165,7 +166,7 @@ fn load_witness_from_bin_reader<F: PrimeField, R: Read>(
     let mut prime = vec![0u8; field_size as usize];
     reader
         .read_exact(&mut prime)
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadBytesError(err.to_string()))?;
 
     // Read the second section.
     let witness_len = reader
@@ -223,11 +224,14 @@ fn load_witness_from_json_file<F: PrimeField>(
 /// Parses witness data from a JSON reader and returns a vector of field elements.
 /// Useful for cases where witness data is stored in JSON format.
 fn load_witness_from_json<F: PrimeField, R: Read>(reader: R) -> Result<Vec<F>> {
-    let witness: Vec<String> = serde_json::from_reader(reader)?;
-    Ok(witness
+    let witness: Vec<String> = serde_json::from_reader(reader).context("Failed to parse JSON")?;
+    witness
         .into_iter()
-        .map(|x| F::from_str_vartime(&x).unwrap())
-        .collect::<Vec<F>>())
+        .map(|x| {
+            F::from_str_vartime(&x)
+                .with_context(|| format!("Failed to parse field element: '{}'", x))
+        })
+        .collect()
 }
 
 /// Loads an R1CS (Rank-1 Constraint System) from a binary file.
@@ -270,37 +274,55 @@ fn read_field<R: Read, F: PrimeField>(mut reader: R) -> Result<F, Error> {
 ///
 /// Reads and parses the header of an R1CS file, returning a [`Header`] struct. This includes
 /// information such as field size, prime size, number of wires, public inputs, and constraints.
-fn read_header<R: Read>(mut reader: R, size: u64, expected_prime: &str) -> Result<Header, Error> {
-    let field_size = reader.read_u32::<LittleEndian>()?;
+fn read_header<R: Read>(
+    mut reader: R,
+    size: u64,
+    expected_prime: &str,
+) -> Result<Header, ReaderError> {
+    let field_size = reader
+        .read_u32::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
 
     if size != 32 + u64::from(field_size) {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            "Invalid header section size",
+        return Err(SectionLengthError(
+            size.to_string(),
+            (32 + u64::from(field_size)).to_string(),
         ));
     }
 
     let mut prime_size = vec![0u8; field_size as usize];
-    reader.read_exact(&mut prime_size)?;
+    reader
+        .read_exact(&mut prime_size)
+        .map_err(|err| ReadBytesError(err.to_string()))?;
     let prime = U256::from_le_slice(&prime_size);
     let prime = &prime.to_string().to_ascii_lowercase();
 
     if prime != &expected_prime[2..] {
         // get rid of '0x' in the front
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("Mismatched prime field. Expected {expected_prime}, read {prime} in the header instead."),
-        ));
+        return Err(NonMatchingPrime {
+            expected: expected_prime.to_string(),
+            value: prime.to_string(),
+        });
     }
 
     Ok(Header {
         field_size,
         prime_size,
-        n_wires: reader.read_u32::<LittleEndian>()?,
-        n_pub_out: reader.read_u32::<LittleEndian>()?,
-        n_pub_in: reader.read_u32::<LittleEndian>()?,
-        n_labels: reader.read_u64::<LittleEndian>()?,
-        n_constraints: reader.read_u32::<LittleEndian>()?,
+        n_wires: reader
+            .read_u32::<LittleEndian>()
+            .map_err(|err| ReadIntegerError(err.to_string()))?,
+        n_pub_out: reader
+            .read_u32::<LittleEndian>()
+            .map_err(|err| ReadIntegerError(err.to_string()))?,
+        n_pub_in: reader
+            .read_u32::<LittleEndian>()
+            .map_err(|err| ReadIntegerError(err.to_string()))?,
+        n_labels: reader
+            .read_u64::<LittleEndian>()
+            .map_err(|err| ReadIntegerError(err.to_string()))?,
+        n_constraints: reader
+            .read_u32::<LittleEndian>()
+            .map_err(|err| ReadIntegerError(err.to_string()))?,
     })
 }
 
@@ -311,13 +333,17 @@ fn read_header<R: Read>(mut reader: R, size: u64, expected_prime: &str) -> Resul
 fn read_constraint_vec<R: Read, F: PrimeField>(
     mut reader: R,
     _header: &Header,
-) -> Result<Vec<(usize, F)>, Error> {
-    let n_vec = reader.read_u32::<LittleEndian>()? as usize;
+) -> Result<Vec<(usize, F)>, ReaderError> {
+    let n_vec = reader
+        .read_u32::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))? as usize;
     let mut vec = Vec::with_capacity(n_vec);
     for _ in 0..n_vec {
         vec.push((
-            reader.read_u32::<LittleEndian>()? as usize,
-            read_field::<&mut R, F>(&mut reader)?,
+            reader
+                .read_u32::<LittleEndian>()
+                .map_err(|err| ReadIntegerError(err.to_string()))? as usize,
+            read_field::<&mut R, F>(&mut reader).map_err(|err| ReadFieldError(err.to_string()))?,
         ));
     }
     Ok(vec)
@@ -331,7 +357,7 @@ fn read_constraints<R: Read, F: PrimeField>(
     mut reader: R,
     _size: u64,
     header: &Header,
-) -> Result<Vec<Constraint<F>>, Error> {
+) -> Result<Vec<Constraint<F>>, ReaderError> {
     // todo check section size
     let mut vec = Vec::with_capacity(header.n_constraints as usize);
     for _ in 0..header.n_constraints {
@@ -348,22 +374,23 @@ fn read_constraints<R: Read, F: PrimeField>(
 ///
 /// This function is responsible for parsing the wire-to-label mapping in an [`R1CS`] file,
 /// critical for correctly interpreting the constraint system.
-fn read_map<R: Read>(mut reader: R, size: u64, header: &Header) -> Result<Vec<u64>, Error> {
+fn read_map<R: Read>(mut reader: R, size: u64, header: &Header) -> Result<Vec<u64>, ReaderError> {
     if size != u64::from(header.n_wires) * 8 {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            "Invalid map section size",
+        return Err(SectionLengthError(
+            size.to_string(),
+            (u64::from(header.n_wires) * 8).to_string(),
         ));
     }
     let mut vec = Vec::with_capacity(header.n_wires as usize);
     for _ in 0..header.n_wires {
-        vec.push(reader.read_u64::<LittleEndian>()?);
+        vec.push(
+            reader
+                .read_u64::<LittleEndian>()
+                .map_err(|err| ReadIntegerError(err.to_string()))?,
+        );
     }
     if vec[0] != 0 {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            "Wire 0 should always be mapped to 0",
-        ));
+        return Err(WireError);
     }
     Ok(vec)
 }
@@ -372,20 +399,26 @@ fn read_map<R: Read>(mut reader: R, size: u64, header: &Header) -> Result<Vec<u6
 ///
 /// Given a byte reader, this function constructs an [`R1CSFile`] structure, which includes
 /// the version, header, constraints, and wire mapping of an [`R1CS`].
-fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<F>, Error> {
+fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<F>, ReaderError> {
     let mut magic = [0u8; 4];
-    reader.read_exact(&mut magic)?;
+    reader
+        .read_exact(&mut magic)
+        .map_err(|err| ReadBytesError(err.to_string()))?;
     if magic != [0x72, 0x31, 0x63, 0x73] {
         // magic = "r1cs"
-        return Err(Error::new(ErrorKind::InvalidData, "Invalid magic number"));
+        return Err(R1CSHeaderError);
     }
 
-    let version = reader.read_u32::<LittleEndian>()?;
+    let version = reader
+        .read_u32::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
     if version != 1 {
-        return Err(Error::new(ErrorKind::InvalidData, "Unsupported version"));
+        return Err(R1CSVersionNotSupported(version.to_string()));
     }
 
-    let num_sections = reader.read_u32::<LittleEndian>()?;
+    let num_sections = reader
+        .read_u32::<LittleEndian>()
+        .map_err(|err| ReadIntegerError(err.to_string()))?;
 
     // section type -> file offset
     let mut section_offsets = HashMap::<u32, u64>::new();
@@ -393,46 +426,73 @@ fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<
 
     // get file offset of each section
     for _ in 0..num_sections {
-        let section_type = reader.read_u32::<LittleEndian>()?;
-        let section_size = reader.read_u64::<LittleEndian>()?;
-        let offset = reader.stream_position()?;
+        let section_type = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|err| ReadIntegerError(err.to_string()))?;
+        let section_size = reader
+            .read_u64::<LittleEndian>()
+            .map_err(|err| ReadIntegerError(err.to_string()))?;
+        let offset = reader
+            .stream_position()
+            .map_err(|err| SeekError(err.to_string()))?;
         section_offsets.insert(section_type, offset);
         section_sizes.insert(section_type, section_size);
-        reader.seek(SeekFrom::Current(section_size as i64))?;
+        reader
+            .seek(SeekFrom::Current(section_size as i64))
+            .map_err(|err| SeekError(err.to_string()))?;
     }
 
     let header_type = 1;
     let constraint_type = 2;
     let wire2label_type = 3;
 
-    reader.seek(SeekFrom::Start(*section_offsets.get(&header_type).unwrap()))?;
+    reader
+        .seek(SeekFrom::Start(
+            *section_offsets
+                .get(&header_type)
+                .ok_or_else(|| SectionNotFound(constraint_type.to_string()))?,
+        ))
+        .map_err(|err| SeekError(err.to_string()))?;
     let header = read_header(
         &mut reader,
         *section_sizes.get(&header_type).unwrap(),
         F::MODULUS,
     )?;
     if header.field_size != 32 {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            "This parser only supports 32-byte fields",
+        return Err(FieldByteSizeError(
+            32.to_string(),
+            header.field_size.to_string(),
         ));
     }
 
-    reader.seek(SeekFrom::Start(
-        *section_offsets.get(&constraint_type).unwrap(),
-    ))?;
+    reader
+        .seek(SeekFrom::Start(
+            *section_offsets
+                .get(&constraint_type)
+                .ok_or_else(|| SectionNotFound(constraint_type.to_string()))?,
+        ))
+        .map_err(|err| SeekError(err.to_string()))?;
     let constraints = read_constraints::<&mut R, F>(
         &mut reader,
-        *section_sizes.get(&constraint_type).unwrap(),
+        *section_sizes
+            .get(&constraint_type)
+            .ok_or_else(|| SectionNotFound(constraint_type.to_string()))?,
         &header,
     )?;
 
-    reader.seek(SeekFrom::Start(
-        *section_offsets.get(&wire2label_type).unwrap(),
-    ))?;
+    reader
+        .seek(SeekFrom::Start(
+            *section_offsets
+                .get(&wire2label_type)
+                .ok_or_else(|| SectionNotFound(constraint_type.to_string()))?,
+        ))
+        .map_err(|err| SeekError(err.to_string()))?;
+
     let wire_mapping = read_map(
         &mut reader,
-        *section_sizes.get(&wire2label_type).unwrap(),
+        *section_sizes
+            .get(&wire2label_type)
+            .ok_or_else(|| SectionNotFound(constraint_type.to_string()))?,
         &header,
     )?;
 
