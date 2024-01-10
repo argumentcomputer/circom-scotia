@@ -41,7 +41,7 @@ use crate::error::WitnessError::{
     WitnessCalculationError,
 };
 use crate::r1cs::CircomInput;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use bellpepper_core::{num::AllocatedNum, ConstraintSystem, LinearCombination, SynthesisError};
 use ff::PrimeField;
 use r1cs::{CircomConfig, R1CS};
