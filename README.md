@@ -72,5 +72,10 @@ For the full code, see the [`sha256.rs`](https://github.com/lurk-lab/circom-scot
 
 Credits to the [Circom language](https://github.com/iden3/circom) from the iden3 team.
 
-The parsing and generation borrows judiciously from [Nova-Scotia](https://github.com/nalinbhardwaj/Nova-Scotia) and [ark-circom](https://github.com/gakonst/ark-circom), respectively. All the loading code is essentially copied over. The `wasmer` witness generator was copied, then retrofitted for support without `arkworks` libraries such as `ark-ff` or `ark-bignum`; these were replaced with `ff` and `crypto-bignum`. The other bits that glue everything together is original.
+The parsing and generation borrows judiciously from [Nova-Scotia](https://github.com/nalinbhardwaj/Nova-Scotia) and [ark-circom](https://github.com/gakonst/ark-circom), respectively. All the 
+loading code is essentially copied over. The `wasmer` witness generator was copied, then retrofitted for support without
+`arkworks` libraries such as `ark-ff` or `ark-bignum`; these were replaced with `ff` and `crypto-bignum`. The other bits
+that glue everything together is original.
+
+Special thanks to Hanting Zhang (@winston-h-zhang) for porting the original code and retrofitting it.
 

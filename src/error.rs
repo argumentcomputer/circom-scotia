@@ -54,4 +54,10 @@ pub enum WitnessError {
     /// Error generated while trying to access or alter the file system.
     #[error("Could not interact with the file system, got: {0}")]
     FileSystemError(String),
+    /// Error generated if a panic occurs when trying to access the content of our Mutex.
+    #[error("Could not acquire the witness calculator mutex lock.")]
+    MutexError,
+    /// Error if we could not calculate the witness.
+    #[error("Failed to calculate the witness, got: {0}")]
+    WitnessCalculationError(String),
 }
