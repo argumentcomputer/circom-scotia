@@ -116,7 +116,7 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
     // Tries to remove input file. Warns if it cannot be done.
     let res = fs::remove_file(witness_generator_input);
     if res.is_err() {
-        println!("warning: could not cleanup temporary file {witness_generator_input}")
+        println!("warning: could not cleanup temporary files")
     }
 
     // Reads the witness from the generated file.

@@ -1,7 +1,25 @@
 // Copyright (c) 2021 Georgios Konstantopoulos
 // Copyright (c) Lurk Lab
 // SPDX-License-Identifier: MIT
-
+//! # Witness calculator module
+//!
+//! The `witness_calculator` module provides functionality for initializing and interacting
+//! with Circom-generated WebAssembly instances. It facilitates the calculation of circuit
+//! witnesses (solutions) based on provided inputs.
+//!
+//! This module abstracts the complexities of setting up a WebAssembly environment and
+//! executing Circom-generated code within it. It includes the definition of [`WitnessCalculator`],
+//! which is responsible for initializing the WebAssembly instance, allocating memory, and
+//! performing computations to generate the witness.
+//!
+//! The [`WitnessCalculator`] struct interacts with the WebAssembly instance using the
+//! WebAssembly [`Store`], and manages memory through a [`SafeMemory`] object. It supports both
+//! Circom version 1 and version 2, providing the necessary interface to handle differences
+//! in their execution environments.
+//!
+//! Additionally, this module contains utility functions for converting between field elements
+//! and their byte representations, as well as the `runtime` submodule, which provides callback
+//! hooks for debugging and error handling within the WebAssembly environment.
 use super::{fnv, CircomBase, SafeMemory, Wasm};
 use color_eyre::Result;
 use crypto_bigint::U256;
@@ -14,14 +32,13 @@ use crate::r1cs::CircomInput;
 #[cfg(feature = "llvm")]
 use wasmer_compiler_llvm::LLVM;
 
-// #[cfg(feature = "circom-2")]
-// use num::ToPrimitive;
-
 #[cfg(feature = "circom-2")]
 use super::Circom2;
 
 use super::Circom;
 
+/// A struct for managing and calculating witnesses in Circom circuits.
+/// It utilizes a WebAssembly instance to run computations and manage state.
 #[derive(Debug)]
 pub struct WitnessCalculator {
     pub instance: Wasm,
@@ -37,7 +54,8 @@ pub struct WitnessCalculator {
 #[error("{0}")]
 struct ExitCode(u32);
 
-/// Little endian
+/// Helper function to convert a vector of [`u32`] values to a [`PrimeField`] element. Assumes little endian representation.
+/// Compatible with Circom version 1.
 pub fn from_vec_u32<F: PrimeField>(arr: Vec<u32>) -> F {
     let mut res = F::ZERO;
     let radix = F::from(0x0001_0000_0000_u64);
@@ -47,7 +65,8 @@ pub fn from_vec_u32<F: PrimeField>(arr: Vec<u32>) -> F {
     res
 }
 
-/// Little endian
+/// Helper function to convert a vector of [`u32`] values to a [`PrimeField`] element. Assumes little endian representation.
+/// Compatible with Circom version 2.
 #[cfg(feature = "circom-2")]
 pub fn to_vec_u32<F: PrimeField>(f: F) -> Vec<u32> {
     let repr = F::to_repr(&f);
@@ -89,10 +108,28 @@ pub fn u256_to_vec_u32(s: U256) -> Vec<u32> {
 }
 
 impl WitnessCalculator {
+    /// Constructs a new [`WitnessCalculator`] from a given file path.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The file path to the WebAssembly module representing the circuit.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the WebAssembly module cannot be loaded or instantiated.
     pub fn new(path: impl AsRef<std::path::Path>) -> Result<Self> {
         Self::from_file(path)
     }
 
+    /// Constructs a [`WitnessCalculator`] from a file containing a WebAssembly module.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The file path to the WebAssembly module representing the circuit.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the WebAssembly module cannot be loaded or instantiated.
     pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "llvm")] {
@@ -106,6 +143,16 @@ impl WitnessCalculator {
         Self::from_module(module, store)
     }
 
+    /// Constructs a [`WitnessCalculator`] from a WebAssembly module.
+    ///
+    /// # Arguments
+    ///
+    /// * `module` - The WebAssembly module representing the circuit.
+    /// * `store` - The WebAssembly store for managing state and execution.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the WebAssembly instance cannot be created.
     pub fn from_module(module: Module, mut store: Store) -> Result<Self> {
         // Set up the memory
         let memory = Memory::new(&mut store, MemoryType::new(2000, None, false)).unwrap();
@@ -205,6 +252,16 @@ impl WitnessCalculator {
         }
     }
 
+    /// Calculates the witness for a given set of Circom inputs.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - A vector of Circom inputs for the computation.
+    /// * `sanity_check` - A flag to enable sanity checks during computation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the witness calculation fails.
     pub fn calculate_witness<F: PrimeField>(
         &mut self,
         input: Vec<CircomInput<F>>,
@@ -225,7 +282,16 @@ impl WitnessCalculator {
         }
     }
 
-    // Circom 1 default behavior
+    /// Calculates the witness for a given set of Circom inputs, specific to Circom version 1.
+    ///
+    /// # Arguments
+    ///
+    /// * `inputs` - A vector of Circom inputs for the computation.
+    /// * `sanity_check` - A flag to enable sanity checks during computation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the witness calculation fails.
     fn calculate_witness_circom1<F: PrimeField>(
         &mut self,
         inputs: Vec<CircomInput<F>>,
@@ -268,7 +334,16 @@ impl WitnessCalculator {
         Ok(w)
     }
 
-    // Circom 2 feature flag with version 2
+    /// Calculates the witness for a given set of Circom inputs, specific to Circom version 2.
+    ///
+    /// # Arguments
+    ///
+    /// * `inputs` - A vector of Circom inputs for the computation.
+    /// * `sanity_check` - A flag to enable sanity checks during computation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the witness calculation fails.
     #[cfg(feature = "circom-2")]
     fn calculate_witness_circom2<F: PrimeField>(
         &mut self,
@@ -310,6 +385,19 @@ impl WitnessCalculator {
         Ok(w)
     }
 
+    /// Retrieves the witness buffer as a byte vector.
+    ///
+    /// # Arguments
+    ///
+    /// * `store` - A mutable reference to the WebAssembly store used in computation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the witness buffer cannot be retrieved.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<u8>` representing the witness buffer if successful.
     pub fn get_witness_buffer(&self, store: &mut impl AsStoreMut) -> Result<Vec<u8>> {
         let ptr = self.instance.get_ptr_witness_buffer(store)? as usize;
         let len = self.instance.get_n_vars(store)? * self.n64 * 8;
@@ -322,10 +410,26 @@ impl WitnessCalculator {
     }
 }
 
-// callback hooks for debugging
 mod runtime {
+    //! Module `runtime` provides callback hooks for debugging and interacting with the Circom execution environment in
+    //! WebAssembly.
+    //!
+    //! These functions are typically registered as imports into the WebAssembly instance and called by the
+    //! Circom-generated WebAssembly code.
     use super::{AsStoreMut, ExitCode, Function, Result, RuntimeError};
 
+    /// Creates a function to handle runtime errors occurring within the WebAssembly instance.
+    ///
+    /// This function is invoked when the Circom-generated code encounters a runtime error.
+    /// It logs the error details and terminates the execution with a custom [`ExitCode`].
+    ///
+    /// # Arguments
+    ///
+    /// * `store` - A mutable reference to the WebAssembly store.
+    ///
+    /// # Returns
+    ///
+    /// A [`Function`] that can be called from within the WebAssembly instance.
     pub fn error(store: &mut impl AsStoreMut) -> Function {
         #[allow(unused)]
         #[allow(clippy::many_single_char_names)]
@@ -338,40 +442,58 @@ mod runtime {
         Function::new_typed(store, func)
     }
 
-    // Circom 2.0
+    // Function definitions for Circom 2.0
+
+    /// Handles exceptions thrown within the WebAssembly instance for Circom 2.0.
+    ///
+    /// This function is a stub and currently does nothing.
     pub fn exception_handler(store: &mut impl AsStoreMut) -> Function {
         #[allow(unused)]
         fn func(a: i32) {}
         Function::new_typed(store, func)
     }
 
-    // Circom 2.0
+    /// Debugging function to display the shared read-write memory in Circom 2.0.
+    ///
+    /// This function is a stub and currently does nothing.
     pub fn show_memory(store: &mut impl AsStoreMut) -> Function {
         #[allow(unused)]
         fn func() {}
         Function::new_typed(store, func)
     }
 
-    // Circom 2.0
+    /// Logs error messages for Circom 2.0.
+    ///
+    /// This function is a stub and currently does nothing.
     pub fn print_error_message(store: &mut impl AsStoreMut) -> Function {
         #[allow(unused)]
         fn func() {}
         Function::new_typed(store, func)
     }
 
-    // Circom 2.0
+    /// Writes buffer messages for Circom 2.0.
+    ///
+    /// This function is a stub and currently does nothing.
     pub fn write_buffer_message(store: &mut impl AsStoreMut) -> Function {
         #[allow(unused)]
         fn func() {}
         Function::new_typed(store, func)
     }
 
+    // Common utility functions for Circom 1 and Circom 2.0
+
+    /// Logs signals during Circom computation.
+    ///
+    /// This function is a stub and currently does nothing.
     pub fn log_signal(store: &mut impl AsStoreMut) -> Function {
         #[allow(unused)]
         fn func(a: i32, b: i32) {}
         Function::new_typed(store, func)
     }
 
+    /// Logs component-related messages during Circom computation.
+    ///
+    /// This function is a stub and currently does nothing.
     pub fn log_component(store: &mut impl AsStoreMut) -> Function {
         #[allow(unused)]
         fn func(a: i32) {}

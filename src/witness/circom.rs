@@ -1,13 +1,20 @@
 // Copyright (c) 2021 Georgios Konstantopoulos
 // Copyright (c) Lurk Lab
 // SPDX-License-Identifier: MIT
+//! # Circom module
+//!
+//! The `circom` module provides an interface for working with WebAssembly (WASM) instances, specifically tailored for
+//! Circom-based cryptographic computations. It includes functionality to interact with Circom-compiled WASM functions and
+//! manage the Circom computation environment.
 
 use color_eyre::Result;
 use wasmer::{AsStoreMut, Function, Instance, Value};
 
+/// Represents a WebAssembly instance for Circom computations.
 #[derive(Clone, Debug)]
 pub struct Wasm(Instance);
 
+/// Base trait for interacting with Circom WASM instances.
 pub trait CircomBase {
     fn init(&self, store: &mut impl AsStoreMut, sanity_check: bool) -> Result<()>;
     fn func(&self, name: &str) -> &Function;
@@ -35,11 +42,14 @@ pub trait CircomBase {
     fn get_version(&self, store: &mut impl AsStoreMut) -> Result<u32>;
 }
 
+/// Extended trait for working with Circom-specific features.
 pub trait Circom {
     fn get_fr_len(&self, store: &mut impl AsStoreMut) -> Result<u32>;
     fn get_ptr_raw_prime(&self, store: &mut impl AsStoreMut) -> Result<u32>;
 }
 
+/// Extended trait for Circom version 2 specific functionalities.
+#[cfg(feature = "circom-2")]
 pub trait Circom2 {
     fn get_field_num_len32(&self, store: &mut impl AsStoreMut) -> Result<u32>;
     fn get_raw_prime(&self, store: &mut impl AsStoreMut) -> Result<()>;
