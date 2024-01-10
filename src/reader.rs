@@ -24,9 +24,8 @@ use std::fs::OpenOptions;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
-use crate::error::ReaderError;
 use crate::error::ReaderError::{
-    FieldByteSizeError, FilenameError, NonMatchingPrime, OpenFileError, R1CSHeaderError,
+    self, FieldByteSizeError, FilenameError, NonMatchingPrime, OpenFileError, R1CSHeaderError,
     R1CSVersionNotSupported, ReadBytesError, ReadFieldError, ReadIntegerError, ReadWitnessError,
     SectionCountError, SectionLengthError, SectionNotFound, SectionTypeError, SeekError, WireError,
     WitnessHeaderError, WitnessVersionNotSupported,

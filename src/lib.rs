@@ -15,6 +15,7 @@ use std::{
     process::Command,
 };
 
+use crate::error::WitnessError::{self, FailedExecutionError, FileSystemError, LoadWitnessError};
 use crate::r1cs::CircomInput;
 use anyhow::{anyhow, Result};
 use bellpepper_core::{num::AllocatedNum, ConstraintSystem, LinearCombination, SynthesisError};
@@ -32,11 +33,14 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
     witness_dir: PathBuf,
     witness_input_json: String,
     witness_output: impl AsRef<Path>,
-) -> Result<Vec<F>> {
-    let root = current_dir().unwrap();
+) -> Result<Vec<F>, WitnessError> {
+    // Create the input.json file.
+    let root = current_dir().map_err(|err| FileSystemError(err.to_string()))?;
     let witness_generator_input = root.join("circom_input.json");
-    fs::write(&witness_generator_input, witness_input_json).unwrap();
+    fs::write(&witness_generator_input, witness_input_json)
+        .map_err(|err| FileSystemError(err.to_string()))?;
 
+    // Prepare and execute the node cmd to generate our witness file.
     let mut witness_js = witness_dir.clone();
     witness_js.push("generate_witness.js");
     let mut witness_wasm = witness_dir.clone();
@@ -48,13 +52,22 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
         .arg(&witness_generator_input)
         .arg(witness_output.as_ref())
         .output()
-        .expect("failed to execute process");
+        .map_err(|err| FailedExecutionError(err.to_string()))?;
+
+    // Print output of the node cmd.
     if !output.stdout.is_empty() || !output.stderr.is_empty() {
-        print!("stdout: {}", std::str::from_utf8(&output.stdout).unwrap());
-        print!("stderr: {}", std::str::from_utf8(&output.stderr).unwrap());
+        println!("stdout: {}", std::str::from_utf8(&output.stdout).unwrap());
+        println!("stderr: {}", std::str::from_utf8(&output.stderr).unwrap());
     }
-    let _ = fs::remove_file(witness_generator_input);
-    load_witness_from_file(witness_output).map_err(|err| anyhow!(err))
+
+    // Tries to remove input file. Warns if it cannot be done.
+    let res = fs::remove_file(witness_generator_input);
+    if res.is_err() {
+        println!("warning: could not cleanup temporary file {witness_generator_input}")
+    }
+
+    // Reads the witness from the generated file.
+    load_witness_from_file(witness_output).map_err(|err| LoadWitnessError(err.to_string()))
 }
 
 /// TODO docs

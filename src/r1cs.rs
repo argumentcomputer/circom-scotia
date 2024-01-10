@@ -53,7 +53,7 @@ pub struct CircomConfig<F: PrimeField> {
 
 impl<F: PrimeField> CircomConfig<F> {
     pub fn new(wtns: impl AsRef<Path>, r1cs: impl AsRef<Path>) -> Result<Self> {
-        let wtns = Mutex::new(WitnessCalculator::new(wtns).unwrap());
+        let wtns = Mutex::new(WitnessCalculator::new(wtns).map_err(|err| anyhow!(err))?);
         let r1cs = load_r1cs(r1cs).map_err(|err| anyhow!(err))?;
         Ok(Self {
             wtns,

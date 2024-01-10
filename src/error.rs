@@ -41,3 +41,17 @@ pub enum ReaderError {
     #[error("Wire 0 should always be mapped to 0")]
     WireError,
 }
+
+/// Enum related to witness generatiuon problems.
+#[derive(Error, Debug)]
+pub enum WitnessError {
+    /// Error if we could not execute the node command to generate our witness.
+    #[error("Failed to execute the witness generation, got: {0}")]
+    FailedExecutionError(String),
+    /// Error if we could not read the witness from the generated file.
+    #[error("Could not load witness from its generated file, got: {0}")]
+    LoadWitnessError(String),
+    /// Error generated while trying to access or alter the file system.
+    #[error("Could not interact with the file system, got: {0}")]
+    FileSystemError(String),
+}
