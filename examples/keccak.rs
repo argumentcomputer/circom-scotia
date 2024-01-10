@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
 use bellpepper_core::ConstraintSystem;
 use circom_scotia::{calculate_witness, r1cs::CircomConfig, synthesize};
 

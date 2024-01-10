@@ -30,6 +30,8 @@ mod memory;
 pub(super) use memory::SafeMemory;
 
 mod circom;
+mod error;
+
 pub(super) use circom::{CircomBase, Wasm};
 
 #[cfg(feature = "circom-2")]

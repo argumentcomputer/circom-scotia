@@ -21,7 +21,7 @@
 //! and their byte representations, as well as the `runtime` submodule, which provides callback
 //! hooks for debugging and error handling within the WebAssembly environment.
 use super::{fnv, CircomBase, SafeMemory, Wasm};
-use color_eyre::Result;
+use anyhow::Result;
 use crypto_bigint::U256;
 use ff::PrimeField;
 use wasmer::{
@@ -29,6 +29,7 @@ use wasmer::{
 };
 
 use crate::r1cs::CircomInput;
+use crate::witness::error::WitnessCalculatorError::{MemoryInitError, UnalignedParts};
 #[cfg(feature = "llvm")]
 use wasmer_compiler_llvm::LLVM;
 
@@ -68,31 +69,36 @@ pub fn from_vec_u32<F: PrimeField>(arr: Vec<u32>) -> F {
 /// Helper function to convert a vector of [`u32`] values to a [`PrimeField`] element. Assumes little endian representation.
 /// Compatible with Circom version 2.
 #[cfg(feature = "circom-2")]
-pub fn to_vec_u32<F: PrimeField>(f: F) -> Vec<u32> {
+pub fn to_vec_u32<F: PrimeField>(f: F) -> Result<Vec<u32>> {
     let repr = F::to_repr(&f);
     let repr = repr.as_ref();
 
     let (pre, res, suf) = unsafe { repr.align_to::<u32>() };
-    assert_eq!(pre.len(), 0);
-    assert_eq!(suf.len(), 0);
 
-    res.into()
+    if !pre.is_empty() || !suf.is_empty() {
+        return Err(UnalignedParts.into());
+    }
+
+    Ok(res.into())
 }
 
 /// Little endian
 #[cfg(feature = "circom-2")]
-pub fn u256_from_vec_u32(data: &[u32]) -> U256 {
+pub fn u256_from_vec_u32(data: &[u32]) -> Result<U256> {
     let mut limbs = [0u32; 8];
     limbs.copy_from_slice(data);
 
     cfg_if::cfg_if! {
         if #[cfg(target_pointer_width = "64")] {
             let (pre, limbs, suf) = unsafe { limbs.align_to::<u64>() };
-            assert_eq!(pre.len(), 0);
-            assert_eq!(suf.len(), 0);
-            U256::from_words(limbs.try_into().unwrap())
+
+            if !pre.is_empty()  || !suf.is_empty() {
+                return Err(UnalignedParts.into())
+            }
+
+            Ok(U256::from_words(limbs.try_into()?))
         } else {
-            U256::from_words(limbs.as_ref().try_into().unwrap())
+            Ok(U256::from_words(limbs.as_ref().try_into()?))
         }
     }
 }
@@ -155,7 +161,8 @@ impl WitnessCalculator {
     /// Returns an error if the WebAssembly instance cannot be created.
     pub fn from_module(module: Module, mut store: Store) -> Result<Self> {
         // Set up the memory
-        let memory = Memory::new(&mut store, MemoryType::new(2000, None, false)).unwrap();
+        let memory = Memory::new(&mut store, MemoryType::new(2000, None, false))
+            .map_err(|err| MemoryInitError(err.to_string()))?;
         let import_object = imports! {
             "env" => {
                 "memory" => memory.clone(),
@@ -194,7 +201,7 @@ impl WitnessCalculator {
                 let res = instance.read_shared_rw_memory(&mut store, i)?;
                 arr[i as usize] = res;
             }
-            let prime = u256_from_vec_u32(&arr);
+            let prime = u256_from_vec_u32(&arr)?;
 
             let n64 = ((prime.bits() - 1) / 64 + 1) as u32;
             safe_memory.prime = prime;
@@ -359,7 +366,7 @@ impl WitnessCalculator {
             let (msb, lsb) = fnv(&input.name);
 
             for (i, value) in input.value.into_iter().enumerate() {
-                let f_arr = to_vec_u32(value);
+                let f_arr = to_vec_u32(value)?;
                 for j in 0..n32 {
                     self.instance
                         .write_shared_rw_memory(&mut self.store, j, f_arr[j as usize])?;
@@ -417,6 +424,7 @@ mod runtime {
     //! These functions are typically registered as imports into the WebAssembly instance and called by the
     //! Circom-generated WebAssembly code.
     use super::{AsStoreMut, ExitCode, Function, Result, RuntimeError};
+    use log::error;
 
     /// Creates a function to handle runtime errors occurring within the WebAssembly instance.
     ///
@@ -436,7 +444,7 @@ mod runtime {
         fn func(a: i32, b: i32, c: i32, d: i32, e: i32, f: i32) -> Result<(), RuntimeError> {
             // NOTE: We can also get more information why it is failing, see p2str etc here:
             // https://github.com/iden3/circom_runtime/blob/master/js/witness_calculator.js#L52-L64
-            println!("runtime error, exiting early: {a} {b} {c} {d} {e} {f}",);
+            error!("runtime error, exiting early: {a} {b} {c} {d} {e} {f}",);
             Err(RuntimeError::user(Box::new(ExitCode(1))))
         }
         Function::new_typed(store, func)

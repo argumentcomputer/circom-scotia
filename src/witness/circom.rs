@@ -7,7 +7,7 @@
 //! Circom-based cryptographic computations. It includes functionality to interact with Circom-compiled WASM functions and
 //! manage the Circom computation environment.
 
-use color_eyre::Result;
+use anyhow::Result;
 use wasmer::{AsStoreMut, Function, Instance, Value};
 
 /// Represents a WebAssembly instance for Circom computations.

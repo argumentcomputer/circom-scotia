@@ -44,6 +44,7 @@ use crate::r1cs::CircomInput;
 use anyhow::Result;
 use bellpepper_core::{num::AllocatedNum, ConstraintSystem, LinearCombination, SynthesisError};
 use ff::PrimeField;
+use log::{error, info, warn};
 use r1cs::{CircomConfig, R1CS};
 
 use crate::reader::load_witness_from_file;
@@ -109,14 +110,18 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
 
     // Print output of the node cmd.
     if !output.stdout.is_empty() || !output.stderr.is_empty() {
-        println!("stdout: {}", std::str::from_utf8(&output.stdout).unwrap());
-        println!("stderr: {}", std::str::from_utf8(&output.stderr).unwrap());
+        if let Ok(stdout) = std::str::from_utf8(&output.stdout) {
+            info!("stdout: {stdout}");
+        }
+        if let Ok(stderr) = std::str::from_utf8(&output.stdout) {
+            error!("stderr: {stderr}");
+        }
     }
 
     // Tries to remove input file. Warns if it cannot be done.
     let res = fs::remove_file(witness_generator_input);
     if res.is_err() {
-        println!("warning: could not cleanup temporary files")
+        warn!("warning: could not cleanup temporary files")
     }
 
     // Reads the witness from the generated file.
