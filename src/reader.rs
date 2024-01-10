@@ -13,7 +13,7 @@
 //! files, either in binary or JSON format. It supports handling witness data and circuit
 //! constraints.
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use crypto_bigint::U256;
 use ff::PrimeField;
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,6 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::Error;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
@@ -33,7 +32,6 @@ use crate::error::ReaderError::{
     WitnessHeaderError, WitnessVersionNotSupported,
 };
 use byteorder::{LittleEndian, ReadBytesExt};
-use itertools::Itertools;
 
 use crate::r1cs::Constraint;
 use crate::r1cs::R1CS;
@@ -264,10 +262,19 @@ fn read_field<R: Read, F: PrimeField>(mut reader: R) -> Result<F, Error> {
     let mut repr = F::ZERO.to_repr();
     for digit in repr.as_mut().iter_mut() {
         // TODO: may need to reverse order?
-        *digit = reader.read_u8()?;
+        *digit = reader.read_u8().map_err(|err| anyhow!(err.to_string()))?;
     }
-    let fr = F::from_repr(repr).unwrap();
-    Ok(fr)
+
+    let fr = F::from_repr(repr);
+
+    if <crypto_bigint::subtle::Choice as Into<bool>>::into(fr.is_some()) {
+        #[allow(clippy::unwrap_used)]
+        Ok(fr.unwrap())
+    } else {
+        Err(anyhow!(
+            "Failed to convert a byte representation into a field element."
+        ))
+    }
 }
 
 /// Attempts to extract an R1CS [`Header`] from a byte reader.
@@ -455,7 +462,9 @@ fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<
         .map_err(|err| SeekError(err.to_string()))?;
     let header = read_header(
         &mut reader,
-        *section_sizes.get(&header_type).unwrap(),
+        *section_sizes
+            .get(&header_type)
+            .ok_or_else(|| SectionNotFound(header_type.to_string()))?,
         F::MODULUS,
     )?;
     if header.field_size != 32 {
@@ -571,23 +580,30 @@ fn load_r1cs_from_json<F: PrimeField, R: Read>(reader: R) -> Result<R1CS<F>> {
     let num_inputs = circuit_json.num_inputs + circuit_json.num_outputs + 1;
     let num_aux = circuit_json.num_variables - num_inputs;
 
-    let convert_constraint = |lc: &BTreeMap<String, String>| {
+    let convert_constraint = |lc: &BTreeMap<String, String>| -> Result<Vec<(usize, F)>> {
         lc.iter()
-            .map(|(index, coeff)| (index.parse().unwrap(), F::from_str_vartime(coeff).unwrap()))
-            .collect_vec()
+            .map(|(index, coeff)| {
+                let parsed_index = index
+                    .parse()
+                    .map_err(|_| anyhow!("Failed to parse index: {}", index))?;
+                let parsed_coeff = F::from_str_vartime(coeff)
+                    .ok_or_else(|| anyhow!("Failed to parse coefficient: {}", coeff))?;
+                Ok((parsed_index, parsed_coeff))
+            })
+            .collect()
     };
 
     let constraints = circuit_json
         .constraints
         .iter()
         .map(|c| {
-            (
-                convert_constraint(&c[0]),
-                convert_constraint(&c[1]),
-                convert_constraint(&c[2]),
-            )
+            Ok((
+                convert_constraint(&c[0])?,
+                convert_constraint(&c[1])?,
+                convert_constraint(&c[2])?,
+            ))
         })
-        .collect_vec();
+        .collect::<Result<Vec<_>>>()?;
 
     Ok(R1CS {
         num_pub_in,
