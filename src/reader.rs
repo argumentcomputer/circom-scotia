@@ -53,6 +53,7 @@ struct Header {
     n_wires: u32,
     n_pub_out: u32,
     n_pub_in: u32,
+    n_prv_in: u32,
     n_labels: u64,
     n_constraints: u32,
 }
@@ -316,6 +317,9 @@ fn read_header<R: Read>(
             .read_u32::<LittleEndian>()
             .map_err(|err| ReadIntegerError { source: err.into() })?,
         n_pub_in: reader
+            .read_u32::<LittleEndian>()
+            .map_err(|err| ReadIntegerError { source: err.into() })?,
+        n_prv_in: reader
             .read_u32::<LittleEndian>()
             .map_err(|err| ReadIntegerError { source: err.into() })?,
         n_labels: reader
