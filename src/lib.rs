@@ -77,11 +77,12 @@ pub mod witness;
 /// ```no_run
 /// # use std::path::PathBuf;
 /// # use circom_scotia::generate_witness_from_wasm;
+/// # use pasta_curves::vesta::Base as Fr;
 ///
 /// let witness_dir = PathBuf::from("./path/to/witness/dir");
 /// let input_json = "{\"input\": \"value\"}".to_string();
 /// let witness_output = PathBuf::from("output.wtns");
-/// let result = generate_witness_from_wasm(witness_dir, input_json, &witness_output);
+/// let result = generate_witness_from_wasm::<Fr>(witness_dir, input_json, &witness_output);
 /// ```
 pub fn generate_witness_from_wasm<F: PrimeField>(
     witness_dir: PathBuf,
@@ -147,16 +148,16 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
 ///
 /// ```no_run
 /// # use std::path::{Path, PathBuf};
-/// # use circom_scotia::{calculate_witness, CircomConfig, CircomInput};
+/// # use circom_scotia::{calculate_witness, r1cs::{CircomConfig, CircomInput}};
 /// # use ff::Field;
 /// # use pasta_curves::vesta::Base as Fr;
 ///
 /// let wtns = PathBuf::from("circuit.wtns");
 /// let r1cs = PathBuf::from("circuit.r1cs");
 ///
-/// let cfg = CircomConfig::new(wtns, r1cs);
-/// let inputs = vec![CircomInput::new(String::from("input_name"), vec![Fr::ZERO])];
-/// let result = calculate_witness(&cfg, inputs, true);
+/// let cfg: CircomConfig<Fr> = CircomConfig::new(wtns, r1cs).unwrap();
+/// let inputs: Vec<CircomInput<Fr>> = vec![CircomInput::new(String::from("input_name"), vec![Fr::ZERO])];
+/// let result = calculate_witness::<Fr>(&cfg, inputs, true);
 /// ```
 pub fn calculate_witness<F: PrimeField>(
     cfg: &CircomConfig<F>,
