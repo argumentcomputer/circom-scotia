@@ -94,12 +94,12 @@ fn load_witness_from_bin_file<F: PrimeField>(
         .open(&filename)
         .map_err(|err| OpenFileError {
             filename: path_string.clone(),
-            err: err.to_string(),
+            source: err.into(),
         })?;
     load_witness_from_bin_reader::<F, BufReader<File>>(BufReader::new(reader)).map_err(|err| {
         ReadWitnessError {
             filename: path_string,
-            err: err.to_string(),
+            source: err.into(),
         }
     })
 }
@@ -115,33 +115,33 @@ fn load_witness_from_bin_reader<F: PrimeField, R: Read>(
     let mut wtns_header = [0u8; 4];
     reader
         .read_exact(&mut wtns_header)
-        .map_err(|err| ReadBytesError(err.to_string()))?;
+        .map_err(|err| ReadBytesError { source: err.into() })?;
     if wtns_header != [119, 116, 110, 115] {
         return Err(WitnessHeaderError);
     }
     let version = reader
         .read_u32::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadIntegerError { source: err.into() })?;
 
     if version > 2 {
         return Err(WitnessVersionNotSupported(version.to_string()));
     }
     let num_sections = reader
         .read_u32::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadIntegerError { source: err.into() })?;
     if num_sections != 2 {
         return Err(SectionCountError(num_sections.to_string()));
     }
     // Read the first section.
     let sec_type = reader
         .read_u32::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadIntegerError { source: err.into() })?;
     if sec_type != 1 {
         return Err(SectionTypeError(1.to_string(), sec_type.to_string()));
     }
     let sec_size = reader
         .read_u64::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadIntegerError { source: err.into() })?;
     if sec_size != 4 + 32 + 4 {
         return Err(SectionLengthError(
             (4 + 32 + 4).to_string(),
@@ -150,28 +150,28 @@ fn load_witness_from_bin_reader<F: PrimeField, R: Read>(
     }
     let field_size = reader
         .read_u32::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadIntegerError { source: err.into() })?;
     if field_size != 32 {
         return Err(FieldByteSizeError(32.to_string(), field_size.to_string()));
     }
     let mut prime = vec![0u8; field_size as usize];
     reader
         .read_exact(&mut prime)
-        .map_err(|err| ReadBytesError(err.to_string()))?;
+        .map_err(|err| ReadBytesError { source: err.into() })?;
 
     // Read the second section.
     let witness_len = reader
         .read_u32::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadIntegerError { source: err.into() })?;
     let sec_type = reader
         .read_u32::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadIntegerError { source: err.into() })?;
     if sec_type != 2 {
         return Err(SectionTypeError(2.to_string(), sec_type.to_string()));
     }
     let sec_size = reader
         .read_u64::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadIntegerError { source: err.into() })?;
     if sec_size != u64::from(witness_len * field_size) {
         return Err(SectionLengthError(
             (witness_len * field_size).to_string(),
@@ -181,7 +181,8 @@ fn load_witness_from_bin_reader<F: PrimeField, R: Read>(
     let mut result = Vec::with_capacity(witness_len as usize);
     for _ in 0..witness_len {
         result.push(
-            read_field::<&mut R, F>(&mut reader).map_err(|err| ReadFieldError(err.to_string()))?,
+            read_field::<&mut R, F>(&mut reader)
+                .map_err(|err| ReadFieldError { source: err.into() })?,
         );
     }
     Ok(result)
@@ -200,12 +201,12 @@ fn load_witness_from_json_file<F: PrimeField>(
         .open(&filename)
         .map_err(|err| OpenFileError {
             filename: path_string.clone(),
-            err: err.to_string(),
+            source: err.into(),
         })?;
     load_witness_from_json::<F, BufReader<File>>(BufReader::new(reader)).map_err(|err| {
         ReadWitnessError {
             filename: path_string,
-            err: err.to_string(),
+            source: err.into(),
         }
     })
 }
@@ -239,11 +240,11 @@ fn load_r1cs_from_bin_file<F: PrimeField>(
         .open(filename.as_ref())
         .map_err(|err| OpenFileError {
             filename: path_string.clone(),
-            err: err.to_string(),
+            source: err.into(),
         })?;
     load_r1cs_from_bin(BufReader::new(reader)).map_err(|err| ReadWitnessError {
         filename: path_string,
-        err: err.to_string(),
+        source: err.into(),
     })
 }
 
@@ -281,7 +282,7 @@ fn read_header<R: Read>(
 ) -> Result<Header, ReaderError> {
     let field_size = reader
         .read_u32::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadIntegerError { source: err.into() })?;
 
     if size != 32 + u64::from(field_size) {
         return Err(SectionLengthError(
@@ -293,7 +294,7 @@ fn read_header<R: Read>(
     let mut prime_size = vec![0u8; field_size as usize];
     reader
         .read_exact(&mut prime_size)
-        .map_err(|err| ReadBytesError(err.to_string()))?;
+        .map_err(|err| ReadBytesError { source: err.into() })?;
     let prime = U256::from_le_slice(&prime_size);
     let prime = &prime.to_string().to_ascii_lowercase();
 
@@ -310,19 +311,19 @@ fn read_header<R: Read>(
         prime_size,
         n_wires: reader
             .read_u32::<LittleEndian>()
-            .map_err(|err| ReadIntegerError(err.to_string()))?,
+            .map_err(|err| ReadIntegerError { source: err.into() })?,
         n_pub_out: reader
             .read_u32::<LittleEndian>()
-            .map_err(|err| ReadIntegerError(err.to_string()))?,
+            .map_err(|err| ReadIntegerError { source: err.into() })?,
         n_pub_in: reader
             .read_u32::<LittleEndian>()
-            .map_err(|err| ReadIntegerError(err.to_string()))?,
+            .map_err(|err| ReadIntegerError { source: err.into() })?,
         n_labels: reader
             .read_u64::<LittleEndian>()
-            .map_err(|err| ReadIntegerError(err.to_string()))?,
+            .map_err(|err| ReadIntegerError { source: err.into() })?,
         n_constraints: reader
             .read_u32::<LittleEndian>()
-            .map_err(|err| ReadIntegerError(err.to_string()))?,
+            .map_err(|err| ReadIntegerError { source: err.into() })?,
     })
 }
 
@@ -336,14 +337,15 @@ fn read_constraint_vec<R: Read, F: PrimeField>(
 ) -> Result<Vec<(usize, F)>, ReaderError> {
     let n_vec = reader
         .read_u32::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))? as usize;
+        .map_err(|err| ReadIntegerError { source: err.into() })? as usize;
     let mut vec = Vec::with_capacity(n_vec);
     for _ in 0..n_vec {
         vec.push((
             reader
                 .read_u32::<LittleEndian>()
-                .map_err(|err| ReadIntegerError(err.to_string()))? as usize,
-            read_field::<&mut R, F>(&mut reader).map_err(|err| ReadFieldError(err.to_string()))?,
+                .map_err(|err| ReadIntegerError { source: err.into() })? as usize,
+            read_field::<&mut R, F>(&mut reader)
+                .map_err(|err| ReadFieldError { source: err.into() })?,
         ));
     }
     Ok(vec)
@@ -386,7 +388,7 @@ fn read_map<R: Read>(mut reader: R, size: u64, header: &Header) -> Result<Vec<u6
         vec.push(
             reader
                 .read_u64::<LittleEndian>()
-                .map_err(|err| ReadIntegerError(err.to_string()))?,
+                .map_err(|err| ReadIntegerError { source: err.into() })?,
         );
     }
     if vec[0] != 0 {
@@ -403,7 +405,7 @@ fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<
     let mut magic = [0u8; 4];
     reader
         .read_exact(&mut magic)
-        .map_err(|err| ReadBytesError(err.to_string()))?;
+        .map_err(|err| ReadBytesError { source: err.into() })?;
     if magic != [0x72, 0x31, 0x63, 0x73] {
         // magic = "r1cs"
         return Err(R1CSHeaderError);
@@ -411,14 +413,14 @@ fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<
 
     let version = reader
         .read_u32::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadIntegerError { source: err.into() })?;
     if version != 1 {
         return Err(R1CSVersionNotSupported(version.to_string()));
     }
 
     let num_sections = reader
         .read_u32::<LittleEndian>()
-        .map_err(|err| ReadIntegerError(err.to_string()))?;
+        .map_err(|err| ReadIntegerError { source: err.into() })?;
 
     // section type -> file offset
     let mut section_offsets = HashMap::<u32, u64>::new();
@@ -428,18 +430,18 @@ fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<
     for _ in 0..num_sections {
         let section_type = reader
             .read_u32::<LittleEndian>()
-            .map_err(|err| ReadIntegerError(err.to_string()))?;
+            .map_err(|err| ReadIntegerError { source: err.into() })?;
         let section_size = reader
             .read_u64::<LittleEndian>()
-            .map_err(|err| ReadIntegerError(err.to_string()))?;
+            .map_err(|err| ReadIntegerError { source: err.into() })?;
         let offset = reader
             .stream_position()
-            .map_err(|err| SeekError(err.to_string()))?;
+            .map_err(|err| SeekError { source: err.into() })?;
         section_offsets.insert(section_type, offset);
         section_sizes.insert(section_type, section_size);
         reader
             .seek(SeekFrom::Current(section_size as i64))
-            .map_err(|err| SeekError(err.to_string()))?;
+            .map_err(|err| SeekError { source: err.into() })?;
     }
 
     let header_type = 1;
@@ -452,7 +454,7 @@ fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<
                 .get(&header_type)
                 .ok_or_else(|| SectionNotFound(constraint_type.to_string()))?,
         ))
-        .map_err(|err| SeekError(err.to_string()))?;
+        .map_err(|err| SeekError { source: err.into() })?;
     let header = read_header(
         &mut reader,
         *section_sizes
@@ -473,7 +475,7 @@ fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<
                 .get(&constraint_type)
                 .ok_or_else(|| SectionNotFound(constraint_type.to_string()))?,
         ))
-        .map_err(|err| SeekError(err.to_string()))?;
+        .map_err(|err| SeekError { source: err.into() })?;
     let constraints = read_constraints::<&mut R, F>(
         &mut reader,
         *section_sizes
@@ -488,7 +490,7 @@ fn from_reader<F: PrimeField, R: Read + Seek>(mut reader: R) -> Result<R1CSFile<
                 .get(&wire2label_type)
                 .ok_or_else(|| SectionNotFound(constraint_type.to_string()))?,
         ))
-        .map_err(|err| SeekError(err.to_string()))?;
+        .map_err(|err| SeekError { source: err.into() })?;
 
     let wire_mapping = read_map(
         &mut reader,
@@ -553,11 +555,11 @@ fn load_r1cs_from_json_file<F: PrimeField>(
         .open(&filename)
         .map_err(|err| OpenFileError {
             filename: path_string.clone(),
-            err: err.to_string(),
+            source: err.into(),
         })?;
     load_r1cs_from_json(BufReader::new(reader)).map_err(|err| ReadWitnessError {
         filename: path_string,
-        err: err.to_string(),
+        source: err.into(),
     })
 }
 

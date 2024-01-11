@@ -89,10 +89,10 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
     witness_output: impl AsRef<Path>,
 ) -> Result<Vec<F>, WitnessError> {
     // Create the input.json file.
-    let root = current_dir().map_err(|err| FileSystemError(err.to_string()))?;
+    let root = current_dir().map_err(|err| FileSystemError { source: err.into() })?;
     let witness_generator_input = root.join("circom_input.json");
     fs::write(&witness_generator_input, witness_input_json)
-        .map_err(|err| FileSystemError(err.to_string()))?;
+        .map_err(|err| FileSystemError { source: err.into() })?;
 
     // Prepare and execute the node cmd to generate our witness file.
     let mut witness_js = witness_dir.clone();
@@ -106,7 +106,7 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
         .arg(&witness_generator_input)
         .arg(witness_output.as_ref())
         .output()
-        .map_err(|err| FailedExecutionError(err.to_string()))?;
+        .map_err(|err| FailedExecutionError { source: err.into() })?;
 
     // Print output of the node cmd.
     if !output.stdout.is_empty() || !output.stderr.is_empty() {
@@ -125,7 +125,7 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
     }
 
     // Reads the witness from the generated file.
-    load_witness_from_file(witness_output).map_err(|err| LoadWitnessError(err.to_string()))
+    load_witness_from_file(witness_output).map_err(|err| LoadWitnessError { source: err.into() })
 }
 
 /// Calculates a witness for a given R1CS configuration and a set of circuit inputs.
@@ -167,7 +167,7 @@ pub fn calculate_witness<F: PrimeField>(
     let witness_calculator = &mut *lock;
     witness_calculator
         .calculate_witness(input, sanity_check)
-        .map_err(|err| WitnessCalculationError(err.to_string()))
+        .map_err(|err| WitnessCalculationError { source: err.into() })
 }
 
 /// Synthesizes the constraint system based on the R1CS and the witness data.

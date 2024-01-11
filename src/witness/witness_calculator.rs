@@ -29,7 +29,7 @@ use wasmer::{
 };
 
 use crate::r1cs::CircomInput;
-use crate::witness::error::WitnessCalculatorError::{MemoryInitError, UnalignedParts};
+use crate::witness::error::WitnessCalculatorError::UnalignedParts;
 #[cfg(feature = "llvm")]
 use wasmer_compiler_llvm::LLVM;
 
@@ -161,8 +161,7 @@ impl WitnessCalculator {
     /// Returns an error if the WebAssembly instance cannot be created.
     pub fn from_module(module: Module, mut store: Store) -> Result<Self> {
         // Set up the memory
-        let memory = Memory::new(&mut store, MemoryType::new(2000, None, false))
-            .map_err(|err| MemoryInitError(err.to_string()))?;
+        let memory = Memory::new(&mut store, MemoryType::new(2000, None, false))?;
         let import_object = imports! {
             "env" => {
                 "memory" => memory.clone(),

@@ -4,11 +4,19 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum ReaderError {
     /// Error if we failed to open the file we want to read.
-    #[error("Failed to open file \"{filename}\", got: {err}")]
-    OpenFileError { filename: String, err: String },
+    #[error("Failed to open file \"{filename}\": {source}")]
+    OpenFileError {
+        filename: String,
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
     /// High level error returned if we could not read our .bin or .json file.
-    #[error("Failed to read witness from file \"{filename}\", got: {err}")]
-    ReadWitnessError { filename: String, err: String },
+    #[error("Failed to read witness from file \"{filename}\": {source}")]
+    ReadWitnessError {
+        filename: String,
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
     /// Error thrown if the specified filename contains non-unicode characters.
     #[error("Could not read provided file path. It most likely contains non-Unicode data.")]
     FilenameError,
@@ -19,8 +27,11 @@ pub enum ReaderError {
     #[error("'r1cs' header not found.")]
     R1CSHeaderError,
     /// Error thrown while failing to seek a new position in our buffer.
-    #[error("Error while seeking in buffer, got: {0}")]
-    SeekError(String),
+    #[error("Error while seeking in buffer: {source}")]
+    SeekError {
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
     /// Error thrown when we try to read a witness file with a non-supported version.
     #[error("Witness version not supported. Version supported are 1 or 2, found {0}")]
     WitnessVersionNotSupported(String),
@@ -43,14 +54,23 @@ pub enum ReaderError {
     #[error("Invalid field byte size. Expected {0}, got {1}")]
     FieldByteSizeError(String, String),
     /// Error if we tried to read an integer from the bytes and it failed.
-    #[error("Failed to read integer from bytes, got: {0}")]
-    ReadIntegerError(String),
+    #[error("Failed to read integer from bytes: {source}")]
+    ReadIntegerError {
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
     /// Error if we tried to read a specified amount of bytes and it failed.
-    #[error("Failed to read bytes, got: {0}")]
-    ReadBytesError(String),
+    #[error("Failed to read bytes: {source}")]
+    ReadBytesError {
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
     /// Error if we tried to read a field element from the bytes and it failed.
-    #[error("Failed to read field from bytes, got: {0}")]
-    ReadFieldError(String),
+    #[error("Failed to read field from bytes: {source}")]
+    ReadFieldError {
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
     /// Error thrown if the specified modulus in the r1cs header is not the one we were expecting.
     #[error("Mismatched prime field. Expected {expected}, read {value} in the header instead.")]
     NonMatchingPrime { expected: String, value: String },
@@ -63,18 +83,51 @@ pub enum ReaderError {
 #[derive(Error, Debug)]
 pub enum WitnessError {
     /// Error if we could not execute the node command to generate our witness.
-    #[error("Failed to execute the witness generation, got: {0}")]
-    FailedExecutionError(String),
+    #[error("Failed to execute the witness generation: {source}")]
+    FailedExecutionError {
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
     /// Error if we could not read the witness from the generated file.
-    #[error("Could not load witness from its generated file, got: {0}")]
-    LoadWitnessError(String),
+    #[error("Could not load witness from its generated file: {source}")]
+    LoadWitnessError {
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
     /// Error generated while trying to access or alter the file system.
-    #[error("Could not interact with the file system, got: {0}")]
-    FileSystemError(String),
+    #[error("Could not interact with the file system: {source}")]
+    FileSystemError {
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
     /// Error generated if a panic occurs when trying to access the content of our Mutex.
     #[error("Could not acquire the witness calculator mutex lock.")]
     MutexError,
     /// Error if we could not calculate the witness.
-    #[error("Failed to calculate the witness, got: {0}")]
-    WitnessCalculationError(String),
+    #[error("Failed to calculate the witness: {source}")]
+    WitnessCalculationError {
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
+}
+
+/// Error related to the Circom configuration
+#[derive(Error, Debug)]
+pub enum CircomConfigError {
+    /// Error if we could not instantiate our Witness Calculator.
+    #[error(
+        "Could instantiate a witness calculator based on the witness file \"{path}\": {source}"
+    )]
+    WitnessCalculatorInstantiationError {
+        path: String,
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
+    /// Error if we could not load data from our R1CS file.
+    #[error("Could load r1cs data from the given file \"{path}\": {source}")]
+    LoadR1CSError {
+        path: String,
+        #[source]
+        source: Box<dyn std::error::Error + Sync + Send>,
+    },
 }

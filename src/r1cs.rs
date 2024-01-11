@@ -7,10 +7,12 @@
 
 use std::{path::Path, sync::Mutex};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use ff::PrimeField;
 use serde::{Deserialize, Serialize};
 
+use crate::error::CircomConfigError::{LoadR1CSError, WitnessCalculatorInstantiationError};
+use crate::error::ReaderError::FilenameError;
 use crate::{reader::load_r1cs, witness::WitnessCalculator};
 
 /// Represents a Circom circuit with constraints and an optional witness.
@@ -82,8 +84,19 @@ impl<F: PrimeField> CircomConfig<F> {
     /// Returns a result containing the new [`CircomConfig`] instance or an error if the files
     /// cannot be loaded or parsed correctly.
     pub fn new(wtns: impl AsRef<Path>, r1cs: impl AsRef<Path>) -> Result<Self> {
-        let wtns = Mutex::new(WitnessCalculator::new(wtns).map_err(|err| anyhow!(err))?);
-        let r1cs = load_r1cs(r1cs).map_err(|err| anyhow!(err))?;
+        let path_wtns_string = wtns.as_ref().to_str().ok_or(FilenameError)?.to_string();
+        let path_r1cs_string = r1cs.as_ref().to_str().ok_or(FilenameError)?.to_string();
+
+        let wtns = Mutex::new(WitnessCalculator::new(wtns).map_err(|err| {
+            WitnessCalculatorInstantiationError {
+                path: path_wtns_string,
+                source: err.into(),
+            }
+        })?);
+        let r1cs = load_r1cs(r1cs).map_err(|err| LoadR1CSError {
+            path: path_r1cs_string,
+            source: err.into(),
+        })?;
         Ok(Self {
             wtns,
             r1cs,
