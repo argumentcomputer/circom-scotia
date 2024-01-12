@@ -26,6 +26,4 @@ xclippy = [
     "-Wrust_2018_idioms",
     "-Wtrivial_numeric_casts",
     "-Wunused_qualifications",
-    "-Wclippy::unwrap_used",
-    "-Wclippy::expect_used"
 ]

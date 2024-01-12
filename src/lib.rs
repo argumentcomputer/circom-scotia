@@ -29,25 +29,21 @@
 //! Credits to the [Circom language](https://github.com/iden3/circom) team, [Nova-Scotia](https://github.com/nalinbhardwaj/Nova-Scotia),
 //! and [ark-circom](https://github.com/gakonst/ark-circom) for their foundational work that this library builds upon.
 
-use std::{
-    env::current_dir,
-    fs,
-    path::{Path, PathBuf},
-    process::Command,
-};
-
 use crate::error::WitnessError::{
     self, FailedExecutionError, FileSystemError, LoadWitnessError, MutexError,
     WitnessCalculationError,
 };
 use crate::r1cs::CircomInput;
+use crate::reader::load_witness_from_file;
 use anyhow::Result;
 use bellpepper_core::{num::AllocatedNum, ConstraintSystem, LinearCombination, SynthesisError};
 use ff::PrimeField;
 use log::{error, info, warn};
 use r1cs::{CircomConfig, R1CS};
-
-use crate::reader::load_witness_from_file;
+use std::env::current_dir;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 pub mod error;
 pub mod r1cs;
@@ -84,11 +80,14 @@ pub mod witness;
 /// let witness_output = PathBuf::from("output.wtns");
 /// let result = generate_witness_from_wasm::<Fr>(witness_dir, input_json, &witness_output);
 /// ```
+#[deprecated(
+    note = "generate_witness_from_wasm would use a node CLI to calculate witness. We now expect users to use calculate_witness directly."
+)]
 pub fn generate_witness_from_wasm<F: PrimeField>(
     witness_dir: PathBuf,
     witness_input_json: String,
     witness_output: impl AsRef<Path>,
-) -> Result<Vec<F>, WitnessError> {
+) -> std::result::Result<Vec<F>, WitnessError> {
     // Create the input.json file.
     let root = current_dir().map_err(|err| FileSystemError { source: err.into() })?;
     let witness_generator_input = root.join("circom_input.json");

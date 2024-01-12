@@ -13,8 +13,7 @@ use ff::PrimeField;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::fs::File;
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
@@ -74,7 +73,7 @@ pub struct R1CSFile<F: PrimeField> {
 /// accordingly.
 pub(crate) fn load_witness_from_file<F: PrimeField>(
     filename: impl AsRef<Path>,
-) -> Result<Vec<F>, ReaderError> {
+) -> std::result::Result<Vec<F>, ReaderError> {
     if filename.as_ref().ends_with("json") {
         load_witness_from_json_file::<F>(filename)
     } else {
@@ -88,7 +87,7 @@ pub(crate) fn load_witness_from_file<F: PrimeField>(
 /// It leverages a [`BufReader`] for efficient reading and returns a vector of field elements.
 fn load_witness_from_bin_file<F: PrimeField>(
     filename: impl AsRef<Path>,
-) -> Result<Vec<F>, ReaderError> {
+) -> std::result::Result<Vec<F>, ReaderError> {
     let path_string = filename.as_ref().to_str().ok_or(FilenameError)?.to_string();
     let reader = OpenOptions::new()
         .read(true)
@@ -112,7 +111,7 @@ fn load_witness_from_bin_file<F: PrimeField>(
 /// parsing and conversion into field elements.
 fn load_witness_from_bin_reader<F: PrimeField, R: Read>(
     mut reader: R,
-) -> Result<Vec<F>, ReaderError> {
+) -> std::result::Result<Vec<F>, ReaderError> {
     let mut wtns_header = [0u8; 4];
     reader
         .read_exact(&mut wtns_header)
@@ -195,7 +194,7 @@ fn load_witness_from_bin_reader<F: PrimeField, R: Read>(
 /// for handling human-readable witness data, converting it into a vector of field elements.
 fn load_witness_from_json_file<F: PrimeField>(
     filename: impl AsRef<Path>,
-) -> Result<Vec<F>, ReaderError> {
+) -> std::result::Result<Vec<F>, ReaderError> {
     let path_string = filename.as_ref().to_str().ok_or(FilenameError)?.to_string();
     let reader = OpenOptions::new()
         .read(true)
