@@ -20,23 +20,17 @@
 //! Additionally, this module contains utility functions for converting between field elements
 //! and their byte representations, as well as the `runtime` submodule, which provides callback
 //! hooks for debugging and error handling within the WebAssembly environment.
-use super::{fnv, CircomBase, SafeMemory, Wasm};
 use anyhow::Result;
 use crypto_bigint::U256;
 use ff::PrimeField;
 use wasmer::{
     imports, AsStoreMut, Function, Instance, Memory, MemoryType, Module, RuntimeError, Store,
 };
-
-use crate::r1cs::CircomInput;
-use crate::witness::error::WitnessCalculatorError::UnalignedParts;
 #[cfg(feature = "llvm")]
 use wasmer_compiler_llvm::LLVM;
 
-#[cfg(feature = "circom-2")]
-use super::Circom2;
-
-use super::Circom;
+use super::{fnv, Circom, SafeMemory, Wasm};
+use crate::{r1cs::CircomInput, witness::error::WitnessCalculatorError::UnalignedParts};
 
 /// A struct for managing and calculating witnesses in Circom circuits.
 /// It utilizes a WebAssembly instance to run computations and manage state.
@@ -68,7 +62,6 @@ pub fn from_vec_u32<F: PrimeField>(arr: Vec<u32>) -> F {
 
 /// Helper function to convert a vector of [`u32`] values to a [`PrimeField`] element. Assumes little endian representation.
 /// Compatible with Circom version 2.
-#[cfg(feature = "circom-2")]
 pub fn to_vec_u32<F: PrimeField>(f: F) -> Result<Vec<u32>> {
     let repr = F::to_repr(&f);
     let repr = repr.as_ref();
@@ -83,7 +76,6 @@ pub fn to_vec_u32<F: PrimeField>(f: F) -> Result<Vec<u32>> {
 }
 
 /// Little endian
-#[cfg(feature = "circom-2")]
 pub fn u256_from_vec_u32(data: &[u32]) -> Result<U256> {
     let mut limbs = [0u32; 8];
     limbs.copy_from_slice(data);
@@ -184,160 +176,30 @@ impl WitnessCalculator {
 
         let version = instance.get_version(&mut store).unwrap_or(1);
 
-        // Circom 2 feature flag with version 2
-        #[cfg(feature = "circom-2")]
-        fn new_circom2(
-            mut store: Store,
-            instance: Wasm,
-            memory: Memory,
-            version: u32,
-        ) -> Result<WitnessCalculator> {
-            let n32 = instance.get_field_num_len32(&mut store)?;
-            let mut safe_memory = SafeMemory::new(memory, n32 as usize, U256::ZERO);
-            instance.get_raw_prime(&mut store)?;
-            let mut arr = vec![0; n32 as usize];
-            for i in 0..n32 {
-                let res = instance.read_shared_rw_memory(&mut store, i)?;
-                arr[i as usize] = res;
-            }
-            let prime = u256_from_vec_u32(&arr)?;
-
-            let n64 = ((prime.bits() - 1) / 64 + 1) as u32;
-            safe_memory.prime = prime;
-
-            Ok(WitnessCalculator {
-                instance,
-                store,
-                memory: safe_memory,
-                n64,
-                circom_version: version,
-            })
+        if version != 2 {
+            todo!()
         }
 
-        fn new_circom1(
-            mut store: Store,
-            instance: Wasm,
-            memory: Memory,
-            version: u32,
-        ) -> Result<WitnessCalculator> {
-            // Fallback to Circom 1 behavior
-            let n32 = (instance.get_fr_len(&mut store)? >> 2) - 2;
-            let mut safe_memory = SafeMemory::new(memory, n32 as usize, U256::ZERO);
-            let ptr = instance.get_ptr_raw_prime(&mut store)?;
-            let prime = safe_memory.read_big(&store, ptr as usize);
-
-            let n64 = ((prime.bits() - 1) / 64 + 1) as u32;
-            safe_memory.prime = prime;
-
-            Ok(WitnessCalculator {
-                instance,
-                store,
-                memory: safe_memory,
-                n64,
-                circom_version: version,
-            })
+        let n32 = instance.get_field_num_len32(&mut store)?;
+        let mut safe_memory = SafeMemory::new(memory, n32 as usize, U256::ZERO);
+        instance.get_raw_prime(&mut store)?;
+        let mut arr = vec![0; n32 as usize];
+        for i in 0..n32 {
+            let res = instance.read_shared_rw_memory(&mut store, i)?;
+            arr[i as usize] = res;
         }
+        let prime = u256_from_vec_u32(&arr)?;
 
-        // Three possibilities:
-        // a) Circom 2 feature flag enabled, WASM runtime version 2
-        // b) Circom 2 feature flag enabled, WASM runtime version 1
-        // c) Circom 1 default behavior
-        //
-        // Once Circom 2 support is more stable, feature flag can be removed
+        let n64 = ((prime.bits() - 1) / 64 + 1) as u32;
+        safe_memory.prime = prime;
 
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "circom-2")] {
-                match version {
-                    2 => new_circom2(store, instance, memory, version),
-                    1 => new_circom1(store, instance, memory, version),
-                    _ => panic!("Unknown Circom version")
-                }
-            } else {
-                new_circom1(store, instance, memory, version)
-            }
-        }
-    }
-
-    /// Calculates the witness for a given set of Circom inputs.
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - A vector of Circom inputs for the computation.
-    /// * `sanity_check` - A flag to enable sanity checks during computation.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the witness calculation fails.
-    pub fn calculate_witness<F: PrimeField>(
-        &mut self,
-        input: Vec<CircomInput<F>>,
-        sanity_check: bool,
-    ) -> Result<Vec<F>> {
-        self.instance.init(&mut self.store, sanity_check)?;
-
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "circom-2")] {
-                match self.circom_version {
-                    2 => self.calculate_witness_circom2(input, sanity_check),
-                    1 => self.calculate_witness_circom1(input, sanity_check),
-                    _ => panic!("Unknown Circom version")
-                }
-            } else {
-                self.calculate_witness_circom1(input, sanity_check)
-            }
-        }
-    }
-
-    /// Calculates the witness for a given set of Circom inputs, specific to Circom version 1.
-    ///
-    /// # Arguments
-    ///
-    /// * `inputs` - A vector of Circom inputs for the computation.
-    /// * `sanity_check` - A flag to enable sanity checks during computation.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the witness calculation fails.
-    fn calculate_witness_circom1<F: PrimeField>(
-        &mut self,
-        inputs: Vec<CircomInput<F>>,
-        sanity_check: bool,
-    ) -> Result<Vec<F>> {
-        self.instance.init(&mut self.store, sanity_check)?;
-
-        let old_mem_free_pos = self.memory.free_pos(&self.store);
-        let p_sig_offset = self.memory.alloc_u32(&self.store);
-        let p_fr = self.memory.alloc_fr(&self.store);
-
-        // allocate the inputs
-        for input in inputs {
-            let (msb, lsb) = fnv(&input.name);
-
-            self.instance
-                .get_signal_offset32(&mut self.store, p_sig_offset, 0, msb, lsb)?;
-
-            let sig_offset = self.memory.read_u32(&self.store, p_sig_offset as usize) as usize;
-
-            for (i, _value) in input.value.into_iter().enumerate() {
-                self.memory
-                    .write_fr(&self.store, p_fr as usize, U256::ZERO)?; // TODO: FIXME
-                self.instance
-                    .set_signal(&mut self.store, 0, 0, (sig_offset + i) as u32, p_fr)?;
-            }
-        }
-
-        let mut w = Vec::new();
-
-        let n_vars = self.instance.get_n_vars(&mut self.store)?;
-        for i in 0..n_vars {
-            let ptr = self.instance.get_ptr_witness(&mut self.store, i)? as usize;
-            let el = self.memory.read_fr(&self.store, ptr);
-            w.push(el);
-        }
-
-        self.memory.set_free_pos(&self.store, old_mem_free_pos);
-
-        Ok(w)
+        Ok(WitnessCalculator {
+            instance,
+            store,
+            memory: safe_memory,
+            n64,
+            circom_version: version,
+        })
     }
 
     /// Calculates the witness for a given set of Circom inputs, specific to Circom version 2.
@@ -350,13 +212,16 @@ impl WitnessCalculator {
     /// # Errors
     ///
     /// Returns an error if the witness calculation fails.
-    #[cfg(feature = "circom-2")]
-    fn calculate_witness_circom2<F: PrimeField>(
+    pub fn calculate_witness<F: PrimeField>(
         &mut self,
         inputs: Vec<CircomInput<F>>,
         sanity_check: bool,
     ) -> Result<Vec<F>> {
         self.instance.init(&mut self.store, sanity_check)?;
+
+        if self.circom_version != 2 {
+            todo!()
+        }
 
         let n32 = self.instance.get_field_num_len32(&mut self.store)?;
 

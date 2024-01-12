@@ -32,12 +32,7 @@ pub(super) use memory::SafeMemory;
 mod circom;
 mod error;
 
-pub(super) use circom::{CircomBase, Wasm};
-
-#[cfg(feature = "circom-2")]
-pub(super) use circom::Circom2;
-
-pub(super) use circom::Circom;
+pub(super) use circom::{Circom, Wasm};
 
 use fnv::FnvHasher;
 use std::hash::Hasher;

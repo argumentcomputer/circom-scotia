@@ -39,6 +39,5 @@ getrandom = { version = "0.2.10", features = ["js"] }
 pasta_curves = { version = "0.5.1" }
 
 [features]
-default = ["circom-2"]
-circom-2 = []
+default = []
 llvm = ["dep:wasmer-compiler-llvm"]

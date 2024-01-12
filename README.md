@@ -6,6 +6,8 @@
 
 This repository provides necessary middleware to take generated output of the Circom compiler (R1CS constraints and generated witnesses) and use them with Bellperson. It is based off the work of [Nova-Scotia](https://github.com/nalinbhardwaj/Nova-Scotia) and Arkworks' [Circom-Compat](https://github.com/arkworks-rs/circom-compat). Please see **Credits** at the bottom for proper credits towards the various works used here.
 
+> ⚠️ Note: `circom-scotia` only provide support for Circom 2.*
+
 ## How?
 
 To use it yourself, install version 2.1.6 or greater of [Circom](https://docs.circom.io). Refer to the [Circom documentation](https://docs.circom.io/getting-started/installation/#installing-dependencies) for more information.
