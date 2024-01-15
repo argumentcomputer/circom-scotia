@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
 use bellpepper_core::ConstraintSystem;
 use circom_scotia::{calculate_witness, r1cs::CircomConfig, synthesize};
 use ff::Field;
@@ -7,6 +9,7 @@ use std::env::current_dir;
 
 use bellpepper_core::test_cs::TestConstraintSystem;
 use bellpepper_core::Comparable;
+use circom_scotia::r1cs::CircomInput;
 
 fn main() {
     let root = current_dir().unwrap().join("examples/sha256");
@@ -16,7 +19,10 @@ fn main() {
     let mut cs = TestConstraintSystem::<Fr>::new();
     let cfg = CircomConfig::new(wtns, r1cs).unwrap();
 
-    let arg_in = ("arg_in".into(), vec![Fr::ZERO, Fr::ZERO]);
+    let arg_in = CircomInput {
+        name: "arg_in".into(),
+        value: vec![Fr::ZERO, Fr::ZERO],
+    };
     let input = vec![arg_in];
     let witness = calculate_witness(&cfg, input, true).expect("msg");
 
@@ -27,7 +33,7 @@ fn main() {
     );
 
     let expected = "0x00000000008619b3767c057fdf8e6d99fde2680c5d8517eb06761c0878d40c40";
-    let output_num = format!("{:?}", output.unwrap().get_value().unwrap());
+    let output_num = format!("{:?}", output.unwrap()[0].get_value().unwrap());
     assert!(output_num == expected);
 
     assert!(cs.is_satisfied());
