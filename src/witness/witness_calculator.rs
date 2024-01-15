@@ -30,6 +30,7 @@ use wasmer::{
 use wasmer_compiler_llvm::LLVM;
 
 use super::{fnv, Circom, SafeMemory, Wasm};
+use crate::error::ReaderError::WitnessVersionNotSupported;
 use crate::{r1cs::CircomInput, witness::error::WitnessCalculatorError::UnalignedParts};
 
 /// A struct for managing and calculating witnesses in Circom circuits.
@@ -177,7 +178,7 @@ impl WitnessCalculator {
         let version = instance.get_version(&mut store).unwrap_or(1);
 
         if version != 2 {
-            todo!()
+            return Err(WitnessVersionNotSupported(version.to_string()).into());
         }
 
         let n32 = instance.get_field_num_len32(&mut store)?;
@@ -220,7 +221,7 @@ impl WitnessCalculator {
         self.instance.init(&mut self.store, sanity_check)?;
 
         if self.circom_version != 2 {
-            todo!()
+            return Err(WitnessVersionNotSupported(self.circom_version.to_string()).into());
         }
 
         let n32 = self.instance.get_field_num_len32(&mut self.store)?;

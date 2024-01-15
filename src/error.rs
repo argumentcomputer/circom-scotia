@@ -33,7 +33,7 @@ pub enum ReaderError {
         source: Box<dyn std::error::Error + Sync + Send>,
     },
     /// Error thrown when we try to read a witness file with a non-supported version.
-    #[error("Witness version not supported. Version supported are 1 or 2, found {0}")]
+    #[error("Witness version not supported. Version supported is 2.*, found {0}")]
     WitnessVersionNotSupported(String),
     /// Error thrown when we try to read a r1cs file with a non-supported version.
     #[error("R1CS version not supported. Version supported is 1, found {0}")]
