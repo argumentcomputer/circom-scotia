@@ -21,8 +21,8 @@
 //! and their byte representations, as well as the `runtime` submodule, which provides callback
 //! hooks for debugging and error handling within the WebAssembly environment.
 use anyhow::Result;
-use crypto_bigint::U256;
 use ff::PrimeField;
+use ruint::aliases::U256;
 use wasmer::{
     imports, AsStoreMut, Function, Instance, Memory, MemoryType, Module, RuntimeError, Store,
 };
@@ -31,7 +31,8 @@ use wasmer_compiler_llvm::LLVM;
 
 use super::{fnv, Circom, SafeMemory, Wasm};
 use crate::error::ReaderError::WitnessVersionNotSupported;
-use crate::{r1cs::CircomInput, witness::error::WitnessCalculatorError::UnalignedParts};
+use crate::r1cs::CircomInput;
+use crate::util::{ff_as_limbs, limbs_as_ff, limbs_as_u256};
 
 /// A struct for managing and calculating witnesses in Circom circuits.
 /// It utilizes a WebAssembly instance to run computations and manage state.
@@ -49,62 +50,6 @@ pub struct WitnessCalculator {
 #[derive(thiserror::Error, Debug, Clone, Copy)]
 #[error("{0}")]
 struct ExitCode(u32);
-
-/// Helper function to convert a vector of [`u32`] values to a [`PrimeField`] element. Assumes little endian representation.
-/// Compatible with Circom version 1.
-pub fn from_vec_u32<F: PrimeField>(arr: Vec<u32>) -> F {
-    let mut res = F::ZERO;
-    let radix = F::from(0x0001_0000_0000_u64);
-    for &val in &arr {
-        res = res * radix + F::from(u64::from(val));
-    }
-    res
-}
-
-/// Helper function to convert a vector of [`u32`] values to a [`PrimeField`] element. Assumes little endian representation.
-/// Compatible with Circom version 2.
-pub fn to_vec_u32<F: PrimeField>(f: F) -> Result<Vec<u32>> {
-    let repr = F::to_repr(&f);
-    let repr = repr.as_ref();
-
-    let (pre, res, suf) = unsafe { repr.align_to::<u32>() };
-
-    if !pre.is_empty() || !suf.is_empty() {
-        return Err(UnalignedParts.into());
-    }
-
-    Ok(res.into())
-}
-
-/// Little endian
-pub fn u256_from_vec_u32(data: &[u32]) -> Result<U256> {
-    let mut limbs = [0u32; 8];
-    limbs.copy_from_slice(data);
-
-    cfg_if::cfg_if! {
-        if #[cfg(target_pointer_width = "64")] {
-            let (pre, limbs, suf) = unsafe { limbs.align_to::<u64>() };
-
-            if !pre.is_empty()  || !suf.is_empty() {
-                return Err(UnalignedParts.into())
-            }
-
-            Ok(U256::from_words(limbs.try_into()?))
-        } else {
-            Ok(U256::from_words(limbs.as_ref().try_into()?))
-        }
-    }
-}
-
-/// Little endian
-pub fn u256_to_vec_u32(s: U256) -> Vec<u32> {
-    let words = s.to_words();
-    let (pre, res, suf) = unsafe { words.align_to::<u32>() };
-    assert_eq!(pre.len(), 0);
-    assert_eq!(suf.len(), 0);
-
-    res.into()
-}
 
 impl WitnessCalculator {
     /// Constructs a new [`WitnessCalculator`] from a given file path.
@@ -182,16 +127,17 @@ impl WitnessCalculator {
         }
 
         let n32 = instance.get_field_num_len32(&mut store)?;
+        assert_eq!(n32, 8);
         let mut safe_memory = SafeMemory::new(memory, n32 as usize, U256::ZERO);
         instance.get_raw_prime(&mut store)?;
-        let mut arr = vec![0; n32 as usize];
+        let mut arr = [0; 8];
         for i in 0..n32 {
             let res = instance.read_shared_rw_memory(&mut store, i)?;
             arr[i as usize] = res;
         }
-        let prime = u256_from_vec_u32(&arr)?;
+        let prime = limbs_as_u256(arr);
 
-        let n64 = ((prime.bits() - 1) / 64 + 1) as u32;
+        let n64 = n32 / 2;
         safe_memory.prime = prime;
 
         Ok(WitnessCalculator {
@@ -225,13 +171,14 @@ impl WitnessCalculator {
         }
 
         let n32 = self.instance.get_field_num_len32(&mut self.store)?;
+        assert_eq!(n32, 8);
 
         // allocate the inputs
         for input in inputs {
             let (msb, lsb) = fnv(&input.name);
 
             for (i, value) in input.value.into_iter().enumerate() {
-                let f_arr = to_vec_u32(value)?;
+                let f_arr = ff_as_limbs(&value);
                 for j in 0..n32 {
                     self.instance
                         .write_shared_rw_memory(&mut self.store, j, f_arr[j as usize])?;
@@ -246,12 +193,12 @@ impl WitnessCalculator {
         let witness_size = self.instance.get_witness_size(&mut self.store)?;
         for i in 0..witness_size {
             self.instance.get_witness(&mut self.store, i)?;
-            let mut arr = vec![0; n32 as usize];
+            let mut arr = [0; 8];
             for j in 0..n32 {
                 arr[(n32 as usize) - 1 - (j as usize)] =
                     self.instance.read_shared_rw_memory(&mut self.store, j)?;
             }
-            w.push(from_vec_u32(arr));
+            w.push(limbs_as_ff(arr));
         }
 
         Ok(w)

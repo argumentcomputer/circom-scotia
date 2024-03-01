@@ -6,14 +6,14 @@
 //! This module provides the `SafeMemory` struct and associated methods for efficient and secure memory management in
 //! WASM (WebAssembly) computations, particularly focused on Circom circuit calculations.
 
-use crypto_bigint::{Encoding, U256};
 use ff::PrimeField;
+use ruint::aliases::U256;
 use wasmer::{AsStoreRef, Memory, MemoryView};
 
 use anyhow::Result;
 use std::ops::Deref;
 
-use super::witness_calculator::{from_vec_u32, u256_to_vec_u32};
+use crate::util::u256_as_ff;
 
 /// A wrapper around the [`wasmer::Memory`] object, providing additional functionality
 /// and safety checks specific to Circom computations.
@@ -51,7 +51,7 @@ impl SafeMemory {
     pub fn new(memory: Memory, n32: usize, prime: U256) -> Self {
         // TODO: Figure out a better way to calculate these
         let short_max = U256::from(0x8000_0000u64);
-        let short_min = short_max.neg_mod(&prime);
+        let short_min = short_max.wrapping_neg().reduce_mod(prime);
 
         Self {
             memory,
@@ -171,7 +171,7 @@ impl SafeMemory {
 
         if view[ptr + 7] & 0x80 != 0 {
             let num = self.read_big(store, ptr + 8);
-            from_vec_u32(u256_to_vec_u32(num))
+            u256_as_ff(&num)
         } else {
             F::from(u64::from(self.read_u32(store, ptr)))
         }
@@ -186,7 +186,7 @@ impl SafeMemory {
     /// * `ptr` - The memory address where the field element will be written.
     /// * `fr` - The [`U256`] field element to write.
     fn write_short(&mut self, store: &impl AsStoreRef, ptr: usize, fr: U256) -> Result<()> {
-        let num = fr.to_words()[0] as u32;
+        let num = fr.as_limbs()[0] as u32; // wtf is happening
         self.write_u32(store, ptr, num);
         self.write_u32(store, ptr + 4, 0);
         Ok(())

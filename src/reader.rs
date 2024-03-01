@@ -8,8 +8,8 @@
 //! constraints.
 
 use anyhow::{anyhow, Context, Error, Result};
-use crypto_bigint::U256;
 use ff::PrimeField;
+use ruint::aliases::U256;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -261,7 +261,7 @@ fn read_field<R: Read, F: PrimeField>(mut reader: R) -> Result<F, Error> {
 
     let fr = F::from_repr(repr);
 
-    if <crypto_bigint::subtle::Choice as Into<bool>>::into(fr.is_some()) {
+    if fr.is_some().into() {
         #[allow(clippy::unwrap_used)]
         Ok(fr.unwrap())
     } else {
