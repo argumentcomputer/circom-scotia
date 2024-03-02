@@ -45,7 +45,7 @@ pub struct R1CS<F: PrimeField> {
 ///
 /// This structure is used to represent the inputs that are fed into a Circom circuit.
 /// It consists of the name of the input and the corresponding value as a vector of field elements.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CircomInput<F: PrimeField> {
     pub name: String,
     pub value: Vec<F>,
