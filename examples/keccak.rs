@@ -1,6 +1,6 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use bellpepper_core::ConstraintSystem;
+use bellpepper_core::{Comparable, ConstraintSystem};
 use circom_scotia::{calculate_witness, r1cs::CircomConfig, synthesize};
 
 use pasta_curves::vesta::Base as Fr;
@@ -11,7 +11,7 @@ use circom_scotia::r1cs::CircomInput;
 use pasta_curves::Fq;
 
 fn main() {
-    let root = current_dir().unwrap().join("examples/keccak");
+    let root = current_dir().unwrap().join("circom/keccak");
     let wtns = root.join("circom_keccak256.wasm");
     let r1cs = root.join("circom_keccak256.r1cs");
 
@@ -50,6 +50,13 @@ fn main() {
     let state_out_bytes = bits_to_bytes(&state_out_bits);
 
     assert_eq!(state_out_bytes, expected_output);
+
+    assert!(cs.is_satisfied());
+    assert_eq!(150848, cs.num_constraints());
+    assert_eq!(1, cs.num_inputs());
+    assert_eq!(151104, cs.aux().len());
+
+    println!("Congrats! You synthesized and satisfied a circom keccak circuit in bellpepper!");
 }
 
 // Transforms a slice of bits in a slice of bytes. Fills the bytes from least to most significant

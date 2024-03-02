@@ -12,7 +12,7 @@ use bellpepper_core::Comparable;
 use circom_scotia::r1cs::CircomInput;
 
 fn main() {
-    let root = current_dir().unwrap().join("examples/sha256");
+    let root = current_dir().unwrap().join("circom/sha256");
     let wtns = root.join("circom_sha256.wasm");
     let r1cs = root.join("circom_sha256.r1cs");
 
