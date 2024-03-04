@@ -171,7 +171,7 @@ impl SafeMemory {
 
         if view[ptr + 7] & 0x80 != 0 {
             let num = self.read_big(store, ptr + 8);
-            u256_as_ff(&num)
+            u256_as_ff(num)
         } else {
             F::from(u64::from(self.read_u32(store, ptr)))
         }
@@ -186,7 +186,7 @@ impl SafeMemory {
     /// * `ptr` - The memory address where the field element will be written.
     /// * `fr` - The [`U256`] field element to write.
     fn write_short(&mut self, store: &impl AsStoreRef, ptr: usize, fr: U256) -> Result<()> {
-        let num = fr.as_limbs()[0] as u32; // wtf is happening
+        let num = fr.as_limbs()[0] as u32;
         self.write_u32(store, ptr, num);
         self.write_u32(store, ptr + 4, 0);
         Ok(())

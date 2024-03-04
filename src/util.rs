@@ -4,8 +4,8 @@ use ff::PrimeField;
 use ruint::aliases::U256;
 
 /// Assumes little endian
-pub fn u256_as_limbs(uint: &U256) -> &[u32; 8] {
-    let limbs = uint.as_limbs();
+pub fn u256_as_limbs(uint: U256) -> [u32; 8] {
+    let limbs = *uint.as_limbs();
     unsafe { transmute(limbs) }
 }
 
@@ -16,9 +16,9 @@ pub fn limbs_as_u256(limbs: [u32; 8]) -> U256 {
 }
 
 /// Assumes little endian
-pub fn ff_as_limbs<F: PrimeField>(f: &F) -> &[u32; 8] {
+pub fn ff_as_limbs<F: PrimeField>(f: F) -> [u32; 8] {
     let binding = f.to_repr();
-    let repr: &[u8; 32] = binding.as_ref().try_into().unwrap();
+    let repr: [u8; 32] = binding.as_ref().try_into().unwrap();
     // this doesn't work if the platform we're on is not little endian :scream:
     unsafe { transmute(repr) }
 }
@@ -36,14 +36,14 @@ pub fn limbs_as_ff<F: PrimeField>(limbs: [u32; 8]) -> F {
 }
 
 /// Assumes little endian
-pub fn u256_as_ff<F: PrimeField>(uint: &U256) -> F {
-    limbs_as_ff(*u256_as_limbs(uint))
+pub fn u256_as_ff<F: PrimeField>(uint: U256) -> F {
+    limbs_as_ff(u256_as_limbs(uint))
 }
 
 #[allow(unused)]
 /// Assumes little endian
-pub fn ff_as_u256<F: PrimeField>(f: &F) -> U256 {
-    limbs_as_u256(*ff_as_limbs(f))
+pub fn ff_as_u256<F: PrimeField>(f: F) -> U256 {
+    limbs_as_u256(ff_as_limbs(f))
 }
 
 #[cfg(test)]
@@ -61,8 +61,8 @@ mod tests {
 
         for _ in 0..100 {
             let uint = rng.gen::<U256>();
-            let limbs = u256_as_limbs(&uint);
-            let other_uint = limbs_as_u256(*limbs);
+            let limbs = u256_as_limbs(uint);
+            let other_uint = limbs_as_u256(limbs);
             assert_eq!(uint, other_uint)
         }
     }
@@ -71,11 +71,12 @@ mod tests {
     fn test_ff_limb_roundtrip() {
         let mut rng = rand::thread_rng();
 
-        for _ in 0..100 {}
-        let f = pallas::Scalar::random(&mut rng);
-        let limbs = ff_as_limbs(&f);
-        let other_f = limbs_as_ff(*limbs);
-        assert_eq!(f, other_f)
+        for _ in 0..100 {
+            let f = pallas::Scalar::random(&mut rng);
+            let limbs = ff_as_limbs(f);
+            let other_f = limbs_as_ff(limbs);
+            assert_eq!(f, other_f)
+        }
     }
 
     #[test]
@@ -84,8 +85,8 @@ mod tests {
 
         for _ in 0..100 {
             let f = pallas::Scalar::random(&mut rng);
-            let uint = ff_as_u256(&f);
-            let other_f = u256_as_ff(&uint);
+            let uint = ff_as_u256(f);
+            let other_f = u256_as_ff(uint);
             assert_eq!(f, other_f)
         }
     }

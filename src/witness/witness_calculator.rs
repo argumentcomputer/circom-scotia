@@ -178,7 +178,7 @@ impl WitnessCalculator {
             let (msb, lsb) = fnv(&input.name);
 
             for (i, value) in input.value.into_iter().enumerate() {
-                let f_arr = ff_as_limbs(&value);
+                let f_arr = ff_as_limbs(value);
                 for j in 0..n32 {
                     self.instance
                         .write_shared_rw_memory(&mut self.store, j, f_arr[j as usize])?;
@@ -195,8 +195,7 @@ impl WitnessCalculator {
             self.instance.get_witness(&mut self.store, i)?;
             let mut arr = [0; 8];
             for j in 0..n32 {
-                arr[(n32 as usize) - 1 - (j as usize)] =
-                    self.instance.read_shared_rw_memory(&mut self.store, j)?;
+                arr[j as usize] = self.instance.read_shared_rw_memory(&mut self.store, j)?;
             }
             w.push(limbs_as_ff(arr));
         }

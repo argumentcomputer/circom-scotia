@@ -296,10 +296,13 @@ fn read_header<R: Read>(
         .read_exact(&mut prime_size)
         .map_err(|err| ReadBytesError { source: err.into() })?;
     let prime = U256::from_le_slice(&prime_size);
-    let prime = &prime.to_string().to_ascii_lowercase();
 
-    if prime != &expected_prime[2..] {
-        // get rid of '0x' in the front
+    let expected_prime =
+        U256::from_str_radix(&expected_prime[2..], 16).map_err(|_err| NonMatchingPrime {
+            expected: expected_prime.to_string(),
+            value: prime.to_string(),
+        })?;
+    if prime != expected_prime {
         return Err(NonMatchingPrime {
             expected: expected_prime.to_string(),
             value: prime.to_string(),
