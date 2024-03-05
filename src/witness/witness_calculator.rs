@@ -21,7 +21,7 @@
 //! and their byte representations, as well as the `runtime` submodule, which provides callback
 //! hooks for debugging and error handling within the WebAssembly environment.
 use anyhow::Result;
-use ff::PrimeField;
+use ff::PrimeFieldBits;
 use ruint::aliases::U256;
 use wasmer::{
     imports, AsStoreMut, Function, Instance, Memory, MemoryType, Module, RuntimeError, Store,
@@ -159,7 +159,7 @@ impl WitnessCalculator {
     /// # Errors
     ///
     /// Returns an error if the witness calculation fails.
-    pub fn calculate_witness<F: PrimeField>(
+    pub fn calculate_witness<F: PrimeFieldBits>(
         &mut self,
         inputs: Vec<CircomInput<F>>,
         sanity_check: bool,

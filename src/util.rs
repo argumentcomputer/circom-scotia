@@ -1,48 +1,51 @@
 use std::mem::transmute;
 
-use ff::PrimeField;
+use ff::{PrimeField, PrimeFieldBits};
 use ruint::aliases::U256;
 
-/// Assumes little endian
+/// Converts a [`U256`] value into an little endian array of `[u32; 8]` limbs
 pub fn u256_as_limbs(uint: U256) -> [u32; 8] {
     let limbs = *uint.as_limbs();
     unsafe { transmute(limbs) }
 }
 
-/// Assumes little endian
+/// Converts a little endian array of `[u32; 8]` limbs into a [`U256`] value
 pub fn limbs_as_u256(limbs: [u32; 8]) -> U256 {
     let limbs: [u64; 4] = unsafe { transmute(limbs) };
     U256::from_limbs(limbs)
 }
 
-/// Assumes little endian
-pub fn ff_as_limbs<F: PrimeField>(f: F) -> [u32; 8] {
-    let binding = f.to_repr();
-    let repr: [u8; 32] = binding.as_ref().try_into().unwrap();
-    // this doesn't work if the platform we're on is not little endian :scream:
-    unsafe { transmute(repr) }
-}
-
-/// Assumes little endian
-pub fn limbs_as_ff<F: PrimeField>(limbs: [u32; 8]) -> F {
-    let mut repr = F::ZERO.to_repr();
-    let limbs: [u8; 32] = unsafe { transmute(limbs) };
-    for (i, digit) in repr.as_mut().iter_mut().enumerate() {
-        // this doesn't work if the platform we're on is not little endian :scream:
-        *digit = limbs[i];
+/// Converts a field element into an little endian array of `[u32; 8]` limbs
+pub fn ff_as_limbs<F: PrimeFieldBits>(f: F) -> [u32; 8] {
+    let mut limbs = [0u32; 8];
+    for (i, bit) in f.to_le_bits().iter().enumerate() {
+        if *bit {
+            let limb_index = i / 32;
+            let bit_index = i % 32;
+            limbs[limb_index] |= 1 << bit_index;
+        }
     }
-
-    F::from_repr(repr).unwrap()
+    limbs
 }
 
-/// Assumes little endian
+/// Converts a little endian array of `[u32; 8]` limbs into a field element
+pub fn limbs_as_ff<F: PrimeField>(limbs: [u32; 8]) -> F {
+    let mut res = F::ZERO;
+    let radix = F::from(0x0001_0000_0000_u64);
+    for &val in limbs.iter().rev() {
+        res = res * radix + F::from(u64::from(val));
+    }
+    res
+}
+
+/// Converts a [`U256`] into a field element. We assume the field's size matches 256 bits
 pub fn u256_as_ff<F: PrimeField>(uint: U256) -> F {
     limbs_as_ff(u256_as_limbs(uint))
 }
 
 #[allow(unused)]
-/// Assumes little endian
-pub fn ff_as_u256<F: PrimeField>(f: F) -> U256 {
+/// Converts a field element into a [`U256`]. We assume the field's size matches 256 bits
+pub fn ff_as_u256<F: PrimeFieldBits>(f: F) -> U256 {
     limbs_as_u256(ff_as_limbs(f))
 }
 
