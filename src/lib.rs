@@ -37,7 +37,7 @@ use crate::r1cs::CircomInput;
 use crate::reader::load_witness_from_file;
 use anyhow::Result;
 use bellpepper_core::{num::AllocatedNum, ConstraintSystem, LinearCombination, SynthesisError};
-use ff::PrimeField;
+use ff::{PrimeField, PrimeFieldBits};
 use log::{error, info, warn};
 use r1cs::{CircomConfig, R1CS};
 use std::env::current_dir;
@@ -48,6 +48,7 @@ use std::process::Command;
 pub mod error;
 pub mod r1cs;
 pub mod reader;
+mod util;
 pub mod witness;
 
 /// Generates a witness file from a given WebAssembly (WASM) binary using a JSON input.
@@ -158,7 +159,7 @@ pub fn generate_witness_from_wasm<F: PrimeField>(
 /// let inputs: Vec<CircomInput<Fr>> = vec![CircomInput::new(String::from("input_name"), vec![Fr::ZERO])];
 /// let result = calculate_witness::<Fr>(&cfg, inputs, true);
 /// ```
-pub fn calculate_witness<F: PrimeField>(
+pub fn calculate_witness<F: PrimeFieldBits>(
     cfg: &CircomConfig<F>,
     input: Vec<CircomInput<F>>,
     sanity_check: bool,
