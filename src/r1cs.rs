@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::CircomConfigError::{LoadR1CSError, WitnessCalculatorInstantiationError};
 use crate::error::ReaderError::FilenameError;
-use crate::{reader::load_r1cs, witness::WitnessCalculator};
+use crate::{reader::load_r1cs, wasm::WitnessCalculator};
 
 /// Represents a Circom circuit with constraints and an optional witness.
 ///

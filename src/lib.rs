@@ -49,7 +49,8 @@ pub mod error;
 pub mod r1cs;
 pub mod reader;
 mod util;
-pub mod witness;
+mod wasm;
+mod cxx;
 
 /// Generates a witness file from a given WebAssembly (WASM) binary using a JSON input.
 ///

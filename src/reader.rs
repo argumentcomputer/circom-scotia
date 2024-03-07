@@ -615,3 +615,5 @@ fn load_r1cs_from_json<F: PrimeField, R: Read>(reader: R) -> Result<R1CS<F>> {
         constraints,
     })
 }
+
+fn load_graph()
