@@ -17,6 +17,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
+use crate::cxx::Node;
 use crate::error::ReaderError::{
     self, FieldByteSizeError, FilenameError, NonMatchingPrime, OpenFileError, R1CSHeaderError,
     R1CSVersionNotSupported, ReadBytesError, ReadFieldError, ReadIntegerError, ReadWitnessError,
@@ -616,4 +617,19 @@ fn load_r1cs_from_json<F: PrimeField, R: Read>(reader: R) -> Result<R1CS<F>> {
     })
 }
 
-fn load_graph()
+pub fn load_graph_binary(filename: impl AsRef<Path>) -> Result<(Vec<Node>, Vec<U256>, Vec<U256>)> {
+    let path_string = filename.as_ref().to_str().ok_or(FilenameError)?.to_string();
+    let reader = OpenOptions::new()
+        .read(true)
+        .open(&filename)
+        .map_err(|err| OpenFileError {
+            filename: path_string.clone(),
+            source: err.into(),
+        })?;
+    let reader = BufReader::new(reader);
+    let data = bincode::deserialize_from(reader).map_err(|err| ReadWitnessError {
+        filename: path_string,
+        source: err.into(),
+    })?;
+    Ok(data)
+}
